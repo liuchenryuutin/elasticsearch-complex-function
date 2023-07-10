@@ -17,25 +17,22 @@
  * under the License.
  */
 
-package org.lccy.elasticsearch.plugin.query;
+package org.lccy.elasticsearch.plugin.function;
 
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.SortedSetDocValues;
 import org.apache.lucene.search.Explanation;
 import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.lucene.search.function.CombineFunction;
 import org.elasticsearch.common.lucene.search.function.LeafScoreFunction;
 import org.elasticsearch.common.lucene.search.function.ScoreFunction;
-import org.elasticsearch.common.util.CollectionUtils;
-import org.elasticsearch.index.fielddata.FieldData;
 import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.fielddata.IndexNumericFieldData;
 import org.elasticsearch.index.fielddata.SortedNumericDoubleValues;
-import org.elasticsearch.index.fielddata.plain.ConstantIndexFieldData;
 import org.elasticsearch.index.fielddata.plain.SortedSetDVOrdinalsIndexFieldData;
+import org.lccy.elasticsearch.plugin.function.bo.CategoryScoreBo;
+import org.lccy.elasticsearch.plugin.function.bo.FieldComputeBo;
+import org.lccy.elasticsearch.plugin.function.bo.SortComputeBo;
 import org.lccy.elasticsearch.plugin.util.StringUtil;
 
 import java.io.IOException;
@@ -87,48 +84,59 @@ public class ComplexFieldFunction extends ScoreFunction {
 
             @Override
             public double score(int docId, float subQueryScore) throws IOException {
+                long start = System.currentTimeMillis();
+
                 String categoryCode = getStrVal(docId, (SortedSetDocValues) fieldDataMap.get(categoryField));
                 CategoryScoreBo cbo;
                 if(StringUtil.isEmpty(categoryCode) || (cbo = categorys.get(categoryCode)) == null) {
                     return subQueryScore;
                 }
+                System.out.println("categoryCode:" + categoryCode + ", sub socre:" +  subQueryScore);
 
                 double fieldScoreTotal = 0;
-                if(cbo.fieldsScore() != null && !cbo.fieldsScore().isEmpty()) {
-                    String fieldMode = cbo.fieldMode();
-                    for(FieldComputeBo fbo : cbo.fieldsScore()) {
+                if(cbo.getFieldsScore() != null && !cbo.getFieldsScore().isEmpty()) {
+                    String fieldMode = cbo.getFieldMode();
+                    for(FieldComputeBo fbo : cbo.getFieldsScore()) {
+                        System.out.println("field:" + fbo.getField() + ", fieldMode:" +  fieldMode + ", values class:" + fieldDataMap.get(fbo.getField()));
                         // get field value.
-                        Double fVal = getDoubleVal(docId, (SortedNumericDoubleValues) fieldDataMap.get(fbo.field()));
+                        Double fVal = getDoubleVal(docId, (SortedNumericDoubleValues) fieldDataMap.get(fbo.getField()));
+                        System.out.println("field:" + fbo.getField() + ", value:" +  fVal);
                         if(fVal == null) {
-                            if(!fbo.require()) {
+                            if(!fbo.getRequire()) {
                                 continue;
-                            } else if(fbo.require() && fbo.missing() == null){
-                                throw new IllegalArgumentException("require field " + fbo.field() + "must has a value or has a missing value");
+                            } else if(fbo.getRequire() && fbo.getMissing() == null){
+                                throw new IllegalArgumentException("require field " + fbo.getField() + "must has a value or has a missing value");
                             } else {
-                                fVal = fbo.missing();
+                                fVal = fbo.getMissing();
                             }
                         }
-                        mergeFieldScore(fieldMode, fieldScoreTotal, fbo.computeScore(fVal));
+                        fieldScoreTotal = mergeFieldScore(fieldMode, fieldScoreTotal, fbo.computeScore(fVal));
                     }
                 }
+                System.out.println("fieldScoreTotal:" + fieldScoreTotal);
 
                 double sortScoreTotal = 0;
-                if(cbo.sortScore() != null && !cbo.sortScore().isEmpty()) {
-                    String sortMode = cbo.sortMode();
-                    double sortBaseScore = cbo.sortBaseSocre();
-                    for(SortComputeBo sbo : cbo.sortScore()) {
-                        String[] fVal = getStrValArray(docId, (SortedSetDocValues) fieldDataMap.get(sbo.field()));
+                if(cbo.getSortScore() != null && !cbo.getSortScore().isEmpty()) {
+                    String sortMode = cbo.getSortMode();
+                    double sortBaseScore = cbo.getSortBaseSocre();
+                    for(SortComputeBo sbo : cbo.getSortScore()) {
+                        System.out.println("sortField:" + sbo.getField() + ", sortBaseScore:" +  sortBaseScore + ", values class:" + fieldDataMap.get(sbo.getField()));
+                        String[] fVal = getStrValArray(docId, (SortedSetDocValues) fieldDataMap.get(sbo.getField()));
+                        System.out.println("field:" + sbo.getField() + ", value:" +  Arrays.toString(fVal));
                         if(fVal == null) {
                             continue;
                         }
                         if(sbo.match(fVal)) {
-                            mergeSortScore(sortMode, sortScoreTotal, sbo.weight() * sortBaseScore);
+                            sortScoreTotal = mergeSortScore(sortMode, sortScoreTotal, sbo.getWeight() * sortBaseScore);
                             break;
                         }
                     }
                 }
+                System.out.println("sortScoreTotal:" + sortScoreTotal);
+                long end = System.currentTimeMillis();
+                System.out.println("compute score cost:" + (end -start));
 
-                return funcScoreFactor * (fieldScoreTotal + sortScoreTotal) + originalScoreFactor * subQueryScore;
+                return funcScoreFactor * fieldScoreTotal + originalScoreFactor * subQueryScore + sortScoreTotal;
             }
 
             @Override
@@ -143,6 +151,9 @@ public class ComplexFieldFunction extends ScoreFunction {
     }
 
     public String getStrVal(int docId, SortedSetDocValues values) throws IOException{
+        if(values == null) {
+            return null;
+        }
         long next;
         if(values.advanceExact(docId) && (next = values.nextOrd()) != SortedSetDocValues.NO_MORE_ORDS) {
             return values.lookupOrd(next).utf8ToString();
@@ -174,6 +185,9 @@ public class ComplexFieldFunction extends ScoreFunction {
     }
 
     public double mergeFieldScore(String fieldMode, double total, double target) {
+        if(target < 0) {
+            return total;
+        }
         switch (fieldMode) {
             case Constants.FieldMode.SUM:
                 total += target;
@@ -194,6 +208,9 @@ public class ComplexFieldFunction extends ScoreFunction {
     }
 
     public double mergeSortScore(String sortMode, double total, double target) {
+        if(target < 0) {
+            return total;
+        }
         switch (sortMode) {
             case Constants.SortMode.MAX:
                 total = total < target ? target : total;

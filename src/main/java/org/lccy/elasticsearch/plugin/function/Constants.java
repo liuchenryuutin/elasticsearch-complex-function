@@ -1,4 +1,4 @@
-package org.lccy.elasticsearch.plugin.query;
+package org.lccy.elasticsearch.plugin.function;
 
 /**
  * 类名称： <br>

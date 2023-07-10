@@ -2,7 +2,7 @@ package org.lccy.elasticsearch.plugin;
 
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.plugins.SearchPlugin;
-import org.lccy.elasticsearch.plugin.query.ComplexFieldFunctionBuilder;
+import org.lccy.elasticsearch.plugin.function.ComplexFieldFunctionBuilder;
 
 import java.util.Collections;
 import java.util.List;

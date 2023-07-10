@@ -124,7 +124,7 @@ master| 7.x -> master
                     "value": "9999"
                   },
                   {
-                    "order": 5,
+                    "weight": 5,
                     "field": "iopType",
                     "value": "1"
                   },

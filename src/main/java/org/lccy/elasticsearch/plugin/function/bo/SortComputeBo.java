@@ -1,6 +1,4 @@
-package org.lccy.elasticsearch.plugin.query;
-
-import org.lccy.elasticsearch.plugin.util.StringUtil;
+package org.lccy.elasticsearch.plugin.function.bo;
 
 /**
  * The configuration pojo of sort_socre
@@ -14,42 +12,38 @@ public class SortComputeBo {
     private String type;
     private String value;
 
-    public Integer weight() {
-        return weight;
-    }
-
-    public SortComputeBo weight(Integer weight) {
-        this.weight = weight;
-        return this;
-    }
-
     public Integer getWeight() {
         return weight;
     }
 
-    public String field() {
+    public SortComputeBo setWeight(Integer weight) {
+        this.weight = weight;
+        return this;
+    }
+
+    public String getField() {
         return field;
     }
 
-    public SortComputeBo field(String field) {
+    public SortComputeBo setField(String field) {
         this.field = field;
         return this;
     }
 
-    public String type() {
+    public String getType() {
         return type;
     }
 
-    public SortComputeBo type(String type) {
+    public SortComputeBo setType(String type) {
         this.type = type;
         return this;
     }
 
-    public String value() {
+    public String getValue() {
         return value;
     }
 
-    public SortComputeBo value(String value) {
+    public SortComputeBo setValue(String value) {
         this.value = value;
         return this;
     }

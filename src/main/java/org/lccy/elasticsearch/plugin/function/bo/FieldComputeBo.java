@@ -1,4 +1,4 @@
-package org.lccy.elasticsearch.plugin.query;
+package org.lccy.elasticsearch.plugin.function.bo;
 
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -22,70 +22,65 @@ public class FieldComputeBo {
     private Double missing;
     private boolean require = false;
 
-    public String field() {
+    public String getField() {
         return field;
     }
 
-    public FieldComputeBo field(String field) {
+    public FieldComputeBo setField(String field) {
         this.field = field;
         return this;
     }
 
-    public double factor() {
+    public double getFactor() {
         return factor;
     }
 
-    public FieldComputeBo factor(double factor) {
+    public FieldComputeBo setFactor(double factor) {
         this.factor = factor;
         return this;
     }
 
-    public Modifier modifier() {
+    public Modifier getModifier() {
         return modifier;
     }
 
-    public FieldComputeBo modifier(Modifier modifier) {
-        this.modifier = modifier;
-        return this;
-    }
-
-    public FieldComputeBo modifier(String modifier) {
+    public FieldComputeBo setModifier(String modifier) {
         this.modifier = Modifier.fromString(modifier);
         return this;
     }
 
-    public double weight() {
+    public double getWeight() {
         return weight;
     }
 
-    public FieldComputeBo weight(double weight) {
+    public FieldComputeBo setWeight(double weight) {
         this.weight = weight;
         return this;
     }
 
-    public double addNum() {
+    public double getAddNum() {
         return addNum;
     }
 
-    public FieldComputeBo addNum(double addNum) {
+    public FieldComputeBo setAddNum(double addNum) {
         this.addNum = addNum;
         return this;
     }
 
-    public Double missing() {
+    public Double getMissing() {
         return missing;
     }
 
-    public FieldComputeBo missing(Double missing) {
+    public FieldComputeBo setMissing(Double missing) {
         this.missing = missing;
         return this;
     }
 
-    public boolean require() {
+    public boolean getRequire() {
         return require;
     }
 
-    public FieldComputeBo require(boolean require) {
+    public FieldComputeBo setRequire(boolean require) {
         this.require = require;
         return this;
     }
@@ -96,7 +91,7 @@ public class FieldComputeBo {
      * @return
      */
     public double computeScore(double value) {
-        return this.factor * this.modifier.apply(value) * this.weight + this.addNum;
+        return (this.addNum + this.factor * this.modifier.apply(value)) * this.weight;
     }
 
 

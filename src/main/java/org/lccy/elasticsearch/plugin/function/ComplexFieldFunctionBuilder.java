@@ -17,23 +17,22 @@
  * under the License.
  */
 
-package org.lccy.elasticsearch.plugin.query;
+package org.lccy.elasticsearch.plugin.function;
 
-import org.apache.lucene.util.CollectionUtil;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.common.ParsingException;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.lucene.search.function.FieldValueFactorFunction;
 import org.elasticsearch.common.lucene.search.function.ScoreFunction;
-import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.fielddata.IndexFieldData;
-import org.elasticsearch.index.fielddata.IndexNumericFieldData;
 import org.elasticsearch.index.mapper.MappedFieldType;
 import org.elasticsearch.index.query.QueryShardContext;
 import org.elasticsearch.index.query.functionscore.ScoreFunctionBuilder;
+import org.lccy.elasticsearch.plugin.function.bo.CategoryScoreBo;
+import org.lccy.elasticsearch.plugin.function.bo.FieldComputeBo;
+import org.lccy.elasticsearch.plugin.function.bo.SortComputeBo;
 import org.lccy.elasticsearch.plugin.util.StringUtil;
 
 import java.io.IOException;
@@ -59,6 +58,10 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
 
     public ComplexFieldFunctionBuilder(Double funcScoreFactor, Double originalScoreFactor, Map<String, CategoryScoreBo> categorys,
                                        Map<String, FieldComputeBo> fieldMap, String categoryField) {
+        if(funcScoreFactor == null || funcScoreFactor < 0|| originalScoreFactor == null || originalScoreFactor < 0
+                || categorys == null || categorys.isEmpty() || StringUtil.isEmpty(categoryField)) {
+            throw new IllegalArgumentException("error params, please check.");
+        }
         this.funcScoreFactor = funcScoreFactor;
         this.originalScoreFactor = originalScoreFactor;
         this.categorys = categorys;
@@ -75,29 +78,34 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
         Double originalScoreFactor;
         final Map<String, CategoryScoreBo> categorys = new HashMap<>();
         final Map<String, FieldComputeBo> fields = new HashMap<>();
-        String categoryField;
 
         Map<String, Object> request = in.readMap();
         if(request == null || request.isEmpty()) {
             throw new IllegalArgumentException(NAME + " query is empty.");
         }
-        if((funcScoreFactor = (Double) request.get("func_score_factor")) == null) {
+        if(request.get("func_score_factor") == null) {
             throw new IllegalArgumentException(NAME + " query must has field [func_score_factor]");
+        } else {
+            funcScoreFactor = Double.parseDouble(request.get("func_score_factor").toString());
         }
-        if((originalScoreFactor = (Double) request.get("original_score_factor")) == null) {
+        if(request.get("original_score_factor") == null) {
             throw new IllegalArgumentException(NAME + " query must has field [original_score_factor]");
+        } else {
+            originalScoreFactor = Double.parseDouble(request.get("original_score_factor").toString());
         }
         List<Object> categorysList;
-        if((categorysList = (List) request.get("original_score_factor")) == null) {
+        if((categorysList = (List) request.get("categorys")) == null) {
             throw new IllegalArgumentException(NAME + " query must has field [categorys]");
-        }
-        categoryField = (String) request.get("category_field");
-        if(StringUtil.isEmpty(categoryField)) {
-            categoryField = DEFAULT_CATEGORY;
         }
         if(funcScoreFactor < 0 || originalScoreFactor < 0) {
             throw new IllegalArgumentException(NAME + " query param [original_score_factor] or [func_score_factor] must be greater than 0.");
         }
+
+        String categoryField = (String) request.get("category_field");
+        if(StringUtil.isEmpty(categoryField)) {
+            categoryField = DEFAULT_CATEGORY;
+        }
+        fields.put(categoryField, new FieldComputeBo().setField(categoryField).setRequire(true).setMissing(null));
         categorysList.stream().forEach(x -> {
             if(x instanceof Map) {
                 final Map<String, Object> cat = (Map) x;
@@ -105,7 +113,7 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
                 String fieldMode = (String) cat.get("filed_mode");
                 List<Map> fieldsScore = (List) cat.get("fields_score");
                 String sortMode = (String) cat.get("sort_mode");
-                Double sortBaseSocre = (Double) cat.get("sort_base_socre");
+                Double sortBaseSocre = cat.get("sort_base_socre") == null ? null : Double.parseDouble(cat.get("sort_base_socre").toString());
                 List<Map> sortScore = (List) cat.get("sort_score");
                 if(StringUtil.isEmpty(catCode) || StringUtil.isEmpty(fieldMode) || StringUtil.isEmpty(sortMode)
                         || ((fieldsScore == null || fieldsScore.isEmpty()) && (sortScore == null || sortScore.isEmpty()))) {
@@ -118,27 +126,30 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
                 List<FieldComputeBo> fbos = new ArrayList<>();
                 for(Map fd : fieldsScore) {
                     String field = (String) fd.get("field");
-                    Double factor = (Double) fd.get("factor");
+                    Double factor = fd.get("factor") == null ? null : Double.parseDouble(fd.get("factor").toString());
                     String modifier = (String) fd.get("modifier");
-                    Double weight = (Double) fd.get("weight");
-                    Double addNum = (Double) fd.get("add_num");
-                    Double missing = (Double) fd.get("missing");
+                    Double weight = fd.get("weight") == null ? null : Double.parseDouble(fd.get("weight").toString());
+                    Double addNum = fd.get("add_num") == null ? null : Double.parseDouble(fd.get("add_num").toString());
+                    Double missing = fd.get("missing") == null ? null : Double.parseDouble(fd.get("missing").toString());
+                    Boolean require = (Boolean) fd.get("require");
                     if(StringUtil.isEmpty(field) || StringUtil.isEmpty(modifier)) {
                         throw new IllegalArgumentException(NAME + " query param [categorys] [fields] setting has error, please check.");
                     }
-                    FieldComputeBo fbo = new FieldComputeBo().field(field).factor(factor).modifier(modifier);
+                    FieldComputeBo fbo = new FieldComputeBo()
+                            .setField(field)
+                            .setFactor(factor)
+                            .setModifier(modifier)
+                            .setMissing(missing)
+                            .setRequire(require == null ? false : require);
                     if(weight == null) {
-                        fbo.weight(1);
+                        fbo.setWeight(1);
                     } else {
-                        fbo.weight(weight);
+                        fbo.setWeight(weight);
                     }
                     if(addNum == null) {
-                        fbo.addNum(0);
+                        fbo.setAddNum(0);
                     } else {
-                        fbo.addNum(addNum);
-                    }
-                    if(missing != null) {
-                        fbo.missing(missing);
+                        fbo.setAddNum(addNum);
                     }
                     fbos.add(fbo);
                     fields.put(field, fbo);
@@ -146,14 +157,16 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
 
                 List<SortComputeBo> sbos = new ArrayList<>();
                 for(Map st : sortScore) {
-                    Integer weight = (Integer) st.get("weight");
+                    Integer weight = st.get("weight") == null ? null : Integer.parseInt(st.get("weight").toString());
                     String field = (String) st.get("field");
                     String type = (String) st.get("type");
                     String value = (String) st.get("value");
                     if(StringUtil.isEmpty(field) || weight == null) {
                         throw new IllegalArgumentException(NAME + " query param [categorys] [fields] has error, please check.");
                     }
-                    sbos.add(new SortComputeBo().field(field).weight(weight).value(value).type(type));
+                    sbos.add(new SortComputeBo().setField(field).setWeight(weight).setValue(value).setType(type));
+
+                    fields.put(field, new FieldComputeBo().setField(field).setRequire(false));
                 }
                 if(Constants.SortMode.MAX.equals(sortMode)) {
                     sbos.sort(Comparator.comparingInt(SortComputeBo::getWeight).reversed());
@@ -162,9 +175,9 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
                 }
 
                 for(String code : catCode.split(",")){
-                    CategoryScoreBo cbo = new CategoryScoreBo().name(code).fieldMode(fieldMode).sortMode(sortMode).sortBaseSocre(sortBaseSocre);
-                    cbo.fieldsScore(fbos);
-                    cbo.sortScore(sbos);
+                    CategoryScoreBo cbo = new CategoryScoreBo()
+                            .setName(code).setFieldMode(fieldMode).setSortMode(sortMode).setSortBaseSocre(sortBaseSocre)
+                            .setFieldsScore(fbos).setSortScore(sbos);
                     categorys.put(code, cbo);
                 }
             } else {
@@ -222,7 +235,7 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
             MappedFieldType fieldType = context.getMapperService().fullName(entry.getKey());
             IndexFieldData fieldData = null;
             if (fieldType == null) {
-                if(entry.getValue().require() && entry.getValue().missing() == null) {
+                if(entry.getValue().getRequire() && entry.getValue().getMissing() == null) {
                     throw new ElasticsearchException("Unable to find a field mapper for field [" + entry.getKey() + "]. No 'missing' value defined.");
                 }
             } else {
@@ -231,12 +244,12 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
             fieldDataMap.put(entry.getKey(), fieldData);
         }
 
-        MappedFieldType fieldType = context.getMapperService().fullName(DEFAULT_CATEGORY);
-        if(fieldType == null) {
-            throw new ElasticsearchException("Unable to find a field mapper for field [categoryCode].");
-        }
-        IndexFieldData fieldData = context.getForField(fieldType);
-        fieldDataMap.put("categoryCode", fieldData);
+//        MappedFieldType fieldType = context.getMapperService().fullName(this.categoryField);
+//        if(fieldType == null) {
+//            throw new ElasticsearchException("Unable to find a field mapper for field [" + this.categoryField + "].");
+//        }
+//        IndexFieldData fieldData = context.getForField(fieldType);
+//        fieldDataMap.put(this.categoryField, fieldData);
 
         return new ComplexFieldFunction(funcScoreFactor, originalScoreFactor, categorys, fieldDataMap, categoryField);
     }
@@ -252,24 +265,30 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
         if(request == null || request.isEmpty()) {
             throw new ParsingException(parser.getTokenLocation(), NAME + " query is empty.");
         }
-        if((funcScoreFactor = (Double) request.get("func_score_factor")) == null) {
+        if(request.get("func_score_factor") == null) {
             throw new ParsingException(parser.getTokenLocation(), NAME + " query must has field [func_score_factor]");
+        } else {
+            funcScoreFactor = Double.parseDouble(request.get("func_score_factor").toString());
         }
-        if((originalScoreFactor = (Double) request.get("original_score_factor")) == null) {
+        if(request.get("original_score_factor") == null) {
             throw new ParsingException(parser.getTokenLocation(), NAME + " query must has field [original_score_factor]");
+        } else {
+            originalScoreFactor = Double.parseDouble(request.get("original_score_factor").toString());
         }
         List<Object> categorysList;
-        if((categorysList = (List) request.get("original_score_factor")) == null) {
+        if((categorysList = (List) request.get("categorys")) == null) {
             throw new ParsingException(parser.getTokenLocation(), NAME + " query must has field [categorys]");
+        }
+
+        if(funcScoreFactor < 0 || originalScoreFactor < 0) {
+            throw new ParsingException(parser.getTokenLocation(), NAME + " query param [original_score_factor] or [func_score_factor] must be greater than 0.");
         }
 
         String categoryField = (String) request.get("category_field");
         if(StringUtil.isEmpty(categoryField)) {
             categoryField = DEFAULT_CATEGORY;
         }
-        if(funcScoreFactor < 0 || originalScoreFactor < 0) {
-            throw new ParsingException(parser.getTokenLocation(), NAME + " query param [original_score_factor] or [func_score_factor] must be greater than 0.");
-        }
+        fields.put(categoryField, new FieldComputeBo().setField(categoryField).setRequire(true).setMissing(null));
         categorysList.stream().forEach(x -> {
             if(x instanceof Map) {
                 final Map<String, Object> cat = (Map) x;
@@ -277,7 +296,7 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
                 String fieldMode = (String) cat.get("filed_mode");
                 List<Map> fieldsScore = (List) cat.get("fields_score");
                 String sortMode = (String) cat.get("sort_mode");
-                Double sortBaseSocre = (Double) cat.get("sort_base_socre");
+                Double sortBaseSocre = cat.get("sort_base_socre") == null ? null : Double.parseDouble(cat.get("sort_base_socre").toString());
                 List<Map> sortScore = (List) cat.get("sort_score");
                 if(StringUtil.isEmpty(catCode) || StringUtil.isEmpty(fieldMode) || StringUtil.isEmpty(sortMode)
                         || ((fieldsScore == null || fieldsScore.isEmpty()) && (sortScore == null || sortScore.isEmpty()))) {
@@ -290,25 +309,30 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
                 List<FieldComputeBo> fbos = new ArrayList<>();
                 for(Map fd : fieldsScore) {
                     String field = (String) fd.get("field");
-                    Double factor = (Double) fd.get("factor");
+                    Double factor = fd.get("factor") == null ? null : Double.parseDouble(fd.get("factor").toString());
                     String modifier = (String) fd.get("modifier");
-                    Double weight = (Double) fd.get("weight");
-                    Double addNum = (Double) fd.get("add_num");
-                    Double missing = (Double) fd.get("missing");
+                    Double weight = fd.get("weight") == null ? null : Double.parseDouble(fd.get("weight").toString());
+                    Double addNum = fd.get("add_num") == null ? null : Double.parseDouble(fd.get("add_num").toString());
+                    Double missing = fd.get("missing") == null ? null : Double.parseDouble(fd.get("missing").toString());
                     Boolean require = (Boolean) fd.get("require");
                     if(StringUtil.isEmpty(field) || StringUtil.isEmpty(modifier)) {
-                        throw new ParsingException(parser.getTokenLocation(), NAME + " query param [categorys] [fields] setting has error, please check.");
+                        throw new ParsingException(parser.getTokenLocation(), NAME + " query param [categorys] [fields_score] setting has error, please check.");
                     }
-                    FieldComputeBo fbo = new FieldComputeBo().field(field).factor(factor).modifier(modifier).require(require).missing(missing);
+                    FieldComputeBo fbo = new FieldComputeBo()
+                            .setField(field)
+                            .setFactor(factor)
+                            .setModifier(modifier)
+                            .setMissing(missing)
+                            .setRequire(require == null ? false : require);
                     if(weight == null) {
-                        fbo.weight(1);
+                        fbo.setWeight(1);
                     } else {
-                        fbo.weight(weight);
+                        fbo.setWeight(weight);
                     }
                     if(addNum == null) {
-                        fbo.addNum(0);
+                        fbo.setAddNum(0);
                     } else {
-                        fbo.addNum(addNum);
+                        fbo.setAddNum(addNum);
                     }
                     fbos.add(fbo);
                     fields.put(field, fbo);
@@ -316,20 +340,25 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
 
                 List<SortComputeBo> sbos = new ArrayList<>();
                 for(Map st : sortScore) {
-                    Integer weight = (Integer) st.get("weight");
+                    Integer weight = st.get("weight") == null ? null : Integer.parseInt(st.get("weight").toString());
                     String field = (String) st.get("field");
                     String type = (String) st.get("type");
                     String value = (String) st.get("value");
                     if(StringUtil.isEmpty(field) || weight == null) {
-                        throw new ParsingException(parser.getTokenLocation(), NAME + " query param [categorys] [fields] has error, please check.");
+                        throw new ParsingException(parser.getTokenLocation(), NAME + " query param [categorys] [sort_score] setting has error, please check.");
                     }
-                    sbos.add(new SortComputeBo().field(field).weight(weight).value(value).type(type));
+                    sbos.add(new SortComputeBo().setField(field).setWeight(weight).setValue(value).setType(type));
+
+                    fields.put(field, new FieldComputeBo().setField(field).setRequire(false));
                 }
-                sbos.sort(Comparator.comparingInt(SortComputeBo::weight));
+                if(Constants.SortMode.MAX.equals(sortMode)) {
+                    sbos.sort(Comparator.comparingInt(SortComputeBo::getWeight).reversed());
+                } else {
+                    sbos.sort(Comparator.comparingInt(SortComputeBo::getWeight));
+                }
                 for(String code : catCode.split(",")){
-                    CategoryScoreBo cbo = new CategoryScoreBo().name(code).fieldMode(fieldMode).sortMode(sortMode).sortBaseSocre(sortBaseSocre);
-                    cbo.fieldsScore(fbos);
-                    cbo.sortScore(sbos);
+                    CategoryScoreBo cbo = new CategoryScoreBo().setName(code).setFieldMode(fieldMode).setSortMode(sortMode)
+                            .setSortBaseSocre(sortBaseSocre).setFieldsScore(fbos).setSortScore(sbos);
                     categorys.put(code, cbo);
                 }
             } else {

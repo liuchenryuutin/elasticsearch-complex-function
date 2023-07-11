@@ -33,16 +33,11 @@ import org.elasticsearch.index.fielddata.MultiGeoPointValues;
 import org.elasticsearch.index.fielddata.SortedNumericDoubleValues;
 import org.elasticsearch.index.fielddata.plain.AbstractLatLonPointDVIndexFieldData;
 import org.elasticsearch.index.fielddata.plain.SortedSetDVOrdinalsIndexFieldData;
-import org.lccy.elasticsearch.plugin.function.bo.CategoryScoreBo;
-import org.lccy.elasticsearch.plugin.function.bo.FieldComputeBo;
-import org.lccy.elasticsearch.plugin.function.bo.SortComputeBo;
+import org.lccy.elasticsearch.plugin.function.bo.*;
 import org.lccy.elasticsearch.plugin.util.StringUtil;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -55,17 +50,17 @@ public class ComplexFieldFunction extends ScoreFunction {
     private final double funcScoreFactor;
     private final double originalScoreFactor;
     private final String categoryField;
-    private final Map<String, CategoryScoreBo> categorys;
+    private final Map<String, CategoryScoreWapper> categorys;
     private final Map<String, IndexFieldData> fieldMap;
 
-    public ComplexFieldFunction(double funcScoreFactor, double originalScoreFactor, Map<String, CategoryScoreBo> categorys,
+    public ComplexFieldFunction(double funcScoreFactor, double originalScoreFactor, Map<String, CategoryScoreWapper> categorys,
                                 Map<String, IndexFieldData> fieldMap, String categoryField) {
         super(CombineFunction.MULTIPLY);
         this.funcScoreFactor = funcScoreFactor;
         this.originalScoreFactor = originalScoreFactor;
+        this.categoryField = categoryField;
         this.categorys = categorys;
         this.fieldMap = fieldMap;
-        this.categoryField = categoryField;
     }
 
     @Override
@@ -93,24 +88,24 @@ public class ComplexFieldFunction extends ScoreFunction {
 
             @Override
             public double score(int docId, float subQueryScore) throws IOException {
-                long start = System.currentTimeMillis();
+//                long start = System.currentTimeMillis();
 
                 String categoryCode = getStrVal(docId, (SortedSetDocValues) fieldDataMap.get(categoryField));
-                CategoryScoreBo cbo;
+                CategoryScoreWapper cbo;
                 if (StringUtil.isEmpty(categoryCode) || (cbo = categorys.get(categoryCode)) == null) {
                     return 0;
                 }
 //                System.out.println("categoryCode:" + categoryCode + ", sub socre:" +  subQueryScore);
 
                 double fieldScoreTotal = 0;
-                if (cbo.getFieldsScore() != null && !cbo.getFieldsScore().isEmpty()) {
+                if (cbo.getFieldScoreWappers() != null && !cbo.getFieldScoreWappers().isEmpty()) {
                     String fieldMode = cbo.getFieldMode();
-                    for (FieldComputeBo fbo : cbo.getFieldsScore()) {
+                    for (FieldScoreComputeWapper fbo : cbo.getFieldScoreWappers()) {
 //                        System.out.println("field:" + fbo.getField() + ", fieldMode:" +  fieldMode + ", values class:" + fieldDataMap.get(fbo.getField()));
 
                         // get field value.
-                        Object fVal = null;
-                        if(FieldComputeBo.Modifier.DECAYGEOEXP.equals(fbo.getModifier())) {
+                        Object fVal;
+                        if(FieldScoreComputeWapper.Modifier.DECAYGEOEXP.equals(fbo.getModifier())) {
                             fVal = getGeoPoint(docId, (MultiGeoPointValues) fieldDataMap.get(fbo.getField()));
                             if (fVal == null) {
                                 if (!fbo.getRequire()) {
@@ -135,17 +130,17 @@ public class ComplexFieldFunction extends ScoreFunction {
                                 }
                             }
                         }
-//                        System.out.println("field:" + fbo.getField() + ", value:" +  fVal);
+//                        System.out.println("field:" + fbo.getField() + ", value:" +  fVal.toString());
                         fieldScoreTotal = mergeFieldScore(fieldMode, fieldScoreTotal, fbo.computeScore(fVal));
                     }
                 }
 //                System.out.println("fieldScoreTotal:" + fieldScoreTotal);
 
                 double sortScoreTotal = 0;
-                if (cbo.getSortScore() != null && !cbo.getSortScore().isEmpty()) {
+                if (cbo.getScoreComputeWappers() != null && !cbo.getScoreComputeWappers().isEmpty()) {
                     String sortMode = cbo.getSortMode();
                     double sortBaseScore = cbo.getSortBaseSocre();
-                    for (SortComputeBo sbo : cbo.getSortScore()) {
+                    for (SortScoreComputeWapper sbo : cbo.getScoreComputeWappers()) {
 //                        System.out.println("sortField:" + sbo.getField() + ", sortBaseScore:" +  sortBaseScore + ", values class:" + fieldDataMap.get(sbo.getField()));
                         String[] fVal = getStrValArray(docId, (SortedSetDocValues) fieldDataMap.get(sbo.getField()));
 //                        System.out.println("field:" + sbo.getField() + ", value:" +  Arrays.toString(fVal));
@@ -159,8 +154,8 @@ public class ComplexFieldFunction extends ScoreFunction {
                     }
                 }
 //                System.out.println("sortScoreTotal:" + sortScoreTotal);
-                long end = System.currentTimeMillis();
-                System.out.println("compute score cost:" + (end - start));
+//                long end = System.currentTimeMillis();
+//                System.out.println("compute score cost:" + (end - start));
 
                 // 因为要支持function_score替换相关度评分，直接boost_mode=replace，会导致相关度不计算。@link org.elasticsearch.common.lucene.search.function.FunctionScoreQuery.createWeight
                 // 只有将boost_mode=sum，才会计算相关度。要减去subQueryScore是为了去除相关度的评分
@@ -174,7 +169,7 @@ public class ComplexFieldFunction extends ScoreFunction {
                 return Explanation.match(
                         (float) score,
                         String.format(Locale.ROOT,
-                                "complex_field_score function, subQueryScoreRate[%f], fieldScore[%f], subQueryScore: [%f], complexScore: [%f], fiels:[%s]",
+                                "complex_field_score function, subQueryScoreRate[%f], fieldScoreRate[%f], subQueryScore: [%f], complexScore: [%f], fiels:[%s]",
                                 funcScoreFactor, originalScoreFactor, subQueryScore.getValue().floatValue(), score, fieldMap.keySet().stream().collect(Collectors.joining(","))));
             }
         };

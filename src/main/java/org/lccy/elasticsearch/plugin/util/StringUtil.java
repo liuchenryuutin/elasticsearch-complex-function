@@ -1,5 +1,11 @@
 package org.lccy.elasticsearch.plugin.util;
 
+import org.elasticsearch.common.ParsingException;
+import org.elasticsearch.common.xcontent.XContentParser;
+import org.lccy.elasticsearch.plugin.function.ComplexFieldFunctionBuilder;
+
+import java.util.Map;
+
 /**
  * StringUtil
  *

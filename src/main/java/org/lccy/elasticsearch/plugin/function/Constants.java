@@ -21,4 +21,9 @@ public interface Constants {
         String MAX = "max";
         String MIN = "min";
     }
+
+
+    interface SortValueType {
+        String NOT = "not";
+    }
 }

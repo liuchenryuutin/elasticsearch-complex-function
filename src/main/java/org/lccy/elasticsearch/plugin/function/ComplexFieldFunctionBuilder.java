@@ -30,7 +30,8 @@ import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.mapper.MappedFieldType;
 import org.elasticsearch.index.query.QueryShardContext;
 import org.elasticsearch.index.query.functionscore.ScoreFunctionBuilder;
-import org.lccy.elasticsearch.plugin.function.bo.*;
+import org.lccy.elasticsearch.plugin.function.bo.CategoryScoreWapper;
+import org.lccy.elasticsearch.plugin.function.bo.SortScoreComputeWapper;
 import org.lccy.elasticsearch.plugin.util.StringUtil;
 
 import java.io.IOException;
@@ -147,7 +148,7 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
     protected void doWriteTo(StreamOutput out) throws IOException {
         out.writeOptionalDouble(funcScoreFactor);
         out.writeOptionalDouble(originalScoreFactor);
-        for(CategoryScoreWapper x : categorys.values()) {
+        for (CategoryScoreWapper x : categorys.values()) {
             out.writeMap(x.unwrap());
         }
         out.writeOptionalString(categoryField);
@@ -192,7 +193,7 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
                 }
             } else {
                 IndexFieldData fieldData = context.getForField(fieldType);
-                if(fieldData == null) {
+                if (fieldData == null) {
                     if (entry.getValue()) {
                         throw new ElasticsearchException("Unable to find a field mapper for field [" + entry.getKey() + "]. No 'missing' value defined.");
                     }

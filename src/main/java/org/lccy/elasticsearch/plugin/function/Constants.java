@@ -1,11 +1,10 @@
 package org.lccy.elasticsearch.plugin.function;
 
 /**
- * 类名称： <br>
- * 类描述： <br>
+ * constants class <br>
  *
- * @Date: 2023/07/09 21:13 <br>
- * @author: liuchen11
+ * @author liuchen <br>
+ * @date 2023-07-11
  */
 public interface Constants {
 

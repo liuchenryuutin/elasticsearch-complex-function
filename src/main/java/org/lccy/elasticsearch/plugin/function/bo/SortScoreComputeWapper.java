@@ -13,8 +13,8 @@ import java.util.Objects;
 /**
  * wrap sort score query param <br>
  *
- * @Date: 2023/07/11 09:48 <br>
- * @author: liuchen11
+ * @author liuchen <br>
+ * @date 2023-07-11
  */
 public class SortScoreComputeWapper {
 
@@ -51,7 +51,7 @@ public class SortScoreComputeWapper {
     }
 
     private void throwsException(XContentParser parser, String msg) {
-        if(parser != null) {
+        if (parser != null) {
             throw new ParsingException(parser.getTokenLocation(), msg);
         } else {
             throw new IllegalArgumentException(msg);
@@ -60,7 +60,7 @@ public class SortScoreComputeWapper {
 
     public String getExpression(double sortBaseSocre) {
         String oper = Constants.SortValueType.NOT.equals(this.getType()) ? "!=" : "=";
-        return String.format(Locale.ROOT,"if %s %s %s, then exec %s * %f, else do nothing.", getField(), oper, getValue(), getWeight().toString(), sortBaseSocre);
+        return String.format(Locale.ROOT, "if %s %s %s, then exec %s * %f, else do nothing.", getField(), oper, getValue(), getWeight().toString(), sortBaseSocre);
     }
 
     public boolean match(String[] values) {

@@ -1,6 +1,12 @@
 package org.lccy.elasticsearch.plugin.function.bo;
 
+import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.io.stream.Writeable;
+
+import java.io.IOException;
+import java.io.Serializable;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * The configuration pojo of categorys
@@ -8,7 +14,7 @@ import java.util.List;
  * @author liuchen <br>
  * @date 2023-07-08
  */
-public class CategoryScoreBo {
+public class CategoryScoreBo implements Serializable, Writeable {
     private String name;
     private String fieldMode;
     private List<FieldComputeBo> fieldsScore;
@@ -69,4 +75,37 @@ public class CategoryScoreBo {
         this.sortScore = sortScore;
         return this;
     }
+
+    @Override
+    public void writeTo(StreamOutput out) throws IOException {
+        out.writeString(name);
+        out.writeString(fieldMode);
+        if(fieldsScore != null && !fieldsScore.isEmpty()) {
+            for(FieldComputeBo x : fieldsScore) {
+                x.writeTo(out);
+            }
+        }
+        out.writeString(sortMode);
+        out.writeDouble(sortBaseSocre);
+        if(sortScore != null && !sortScore.isEmpty()) {
+            for(SortComputeBo x : sortScore) {
+                x.writeTo(out);
+            }
+        }
+    }
+
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        CategoryScoreBo that = (CategoryScoreBo) o;
+        return name.equals(that.name) && fieldMode.equals(that.fieldMode) && Objects.equals(fieldsScore, that.fieldsScore) && sortMode.equals(that.sortMode) && sortBaseSocre.equals(that.sortBaseSocre) && Objects.equals(sortScore, that.sortScore);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, fieldMode, fieldsScore, sortMode, sortBaseSocre, sortScore);
+    }
+
 }

@@ -1,11 +1,16 @@
 package org.lccy.elasticsearch.plugin.function.bo;
 
+import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
+import org.elasticsearch.script.ScoreScriptUtils;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Locale;
+import java.util.Objects;
 
 /**
  * The configuration pojo of fields_score
@@ -13,14 +18,19 @@ import java.util.Locale;
  * @author liuchen <br>
  * @date 2023-07-08
  */
-public class FieldComputeBo {
+public class FieldComputeBo implements Serializable, Writeable {
     private String field;
     private double factor;
     private Modifier modifier;
     private double weight;
     private double addNum;
-    private Double missing;
+    private String missing;
     private boolean require = false;
+    // distance compute
+    private String origin;
+    private String scale;
+    private String offset;
+    private Double decay;
 
     public String getField() {
         return field;
@@ -67,11 +77,11 @@ public class FieldComputeBo {
         return this;
     }
 
-    public Double getMissing() {
+    public String getMissing() {
         return missing;
     }
 
-    public FieldComputeBo setMissing(Double missing) {
+    public FieldComputeBo setMissing(String missing) {
         this.missing = missing;
         return this;
     }
@@ -85,13 +95,84 @@ public class FieldComputeBo {
         return this;
     }
 
+    public String getOrigin() {
+        return origin;
+    }
+
+    public FieldComputeBo setOrigin(String origin) {
+        this.origin = origin;
+        return this;
+    }
+
+    public String getScale() {
+        return scale;
+    }
+
+    public FieldComputeBo setScale(String scale) {
+        this.scale = scale;
+        return this;
+    }
+
+    public String getOffset() {
+        return offset;
+    }
+
+    public FieldComputeBo setOffset(String offset) {
+        this.offset = offset;
+        return this;
+    }
+
+    public Double getDecay() {
+        return decay;
+    }
+
+    public FieldComputeBo setDecay(Double decay) {
+        this.decay = decay;
+        return this;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        FieldComputeBo that = (FieldComputeBo) o;
+        return Double.compare(that.factor, factor) == 0 && Double.compare(that.weight, weight) == 0 && Double.compare(that.addNum, addNum) == 0 && require == that.require && Objects.equals(field, that.field) && modifier == that.modifier && Objects.equals(missing, that.missing) && Objects.equals(origin, that.origin) && Objects.equals(scale, that.scale) && Objects.equals(offset, that.offset) && Objects.equals(decay, that.decay);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(field, factor, modifier, weight, addNum, missing, require, origin, scale, offset, decay);
+    }
+
+    @Override
+    public void writeTo(StreamOutput out) throws IOException {
+        out.writeString(field);
+        out.writeDouble(factor);
+        modifier.writeTo(out);
+        out.writeDouble(weight);
+        out.writeDouble(addNum);
+        out.writeOptionalString(missing);
+        out.writeOptionalBoolean(require);
+        out.writeOptionalString(origin);
+        out.writeOptionalString(scale);
+        out.writeOptionalString(offset);
+        out.writeOptionalDouble(decay);
+    }
+
     /**
      * calculate score based on value
+     *
      * @param value
      * @return
      */
-    public double computeScore(double value) {
-        return (this.addNum + this.factor * this.modifier.apply(value)) * this.weight;
+    public double computeScore(Object value) {
+        double fieldScore;
+        if(value instanceof GeoPoint) {
+            fieldScore = new ScoreScriptUtils.DecayGeoExp(origin, scale, offset, decay).decayGeoExp((GeoPoint) value);
+        } else {
+            fieldScore = this.modifier.apply((Double) value);
+        }
+        return (this.addNum + this.factor * fieldScore) * this.weight;
     }
 
 
@@ -158,6 +239,12 @@ public class FieldComputeBo {
             @Override
             public double apply(double n) {
                 return 1.0 / n;
+            }
+        },
+        DECAYGEOEXP {
+            @Override
+            public double apply(double n) {
+                throw new ElasticsearchException("decaygeoexp no support");
             }
         };
 

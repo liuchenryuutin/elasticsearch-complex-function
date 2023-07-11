@@ -30,13 +30,12 @@ import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.mapper.MappedFieldType;
 import org.elasticsearch.index.query.QueryShardContext;
 import org.elasticsearch.index.query.functionscore.ScoreFunctionBuilder;
-import org.lccy.elasticsearch.plugin.function.bo.CategoryScoreBo;
-import org.lccy.elasticsearch.plugin.function.bo.FieldComputeBo;
-import org.lccy.elasticsearch.plugin.function.bo.SortComputeBo;
+import org.lccy.elasticsearch.plugin.function.bo.*;
 import org.lccy.elasticsearch.plugin.util.StringUtil;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Builder to construct {@code complex_field_score} functions for a function
@@ -52,12 +51,11 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
     private final Double funcScoreFactor;
     private final Double originalScoreFactor;
     private final String categoryField;
-    private final Map<String, CategoryScoreBo> categorys;
-    private final Map<String, FieldComputeBo> fieldMap;
+    private final Map<String, CategoryScoreWapper> categorys;
+    private final Map<String, Boolean> fieldMap;
 
-
-    public ComplexFieldFunctionBuilder(Double funcScoreFactor, Double originalScoreFactor, Map<String, CategoryScoreBo> categorys,
-                                       Map<String, FieldComputeBo> fieldMap, String categoryField) {
+    public ComplexFieldFunctionBuilder(Double funcScoreFactor, Double originalScoreFactor, Map<String, CategoryScoreWapper> categorys
+            , String categoryField, Map<String, Boolean> fieldMap) {
         if (funcScoreFactor == null || funcScoreFactor < 0 || originalScoreFactor == null || originalScoreFactor < 0
                 || categorys == null || categorys.isEmpty() || StringUtil.isEmpty(categoryField)) {
             throw new IllegalArgumentException("error params, please check.");
@@ -65,8 +63,8 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
         this.funcScoreFactor = funcScoreFactor;
         this.originalScoreFactor = originalScoreFactor;
         this.categorys = categorys;
-        this.fieldMap = fieldMap;
         this.categoryField = categoryField;
+        this.fieldMap = fieldMap;
     }
 
     /**
@@ -76,8 +74,8 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
         super(in);
         Double funcScoreFactor;
         Double originalScoreFactor;
-        final Map<String, CategoryScoreBo> categorys = new HashMap<>();
-        final Map<String, FieldComputeBo> fields = new HashMap<>();
+        final Map<String, CategoryScoreWapper> categorys = new HashMap<>();
+        final Map<String, Boolean> fields = new HashMap<>();
 
         Map<String, Object> request = in.readMap();
         if (request == null || request.isEmpty()) {
@@ -93,107 +91,38 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
         } else {
             originalScoreFactor = Double.parseDouble(request.get("original_score_factor").toString());
         }
-        List<Object> categorysList;
-        if ((categorysList = (List) request.get("categorys")) == null) {
-            throw new IllegalArgumentException(NAME + " query must has field [categorys]");
-        }
         if (funcScoreFactor < 0 || originalScoreFactor < 0) {
             throw new IllegalArgumentException(NAME + " query param [original_score_factor] or [func_score_factor] must be greater than 0.");
+        }
+
+        List<Object> categorysList = (List) request.get("categorys");
+        if (categorysList == null || categorysList.isEmpty()) {
+            throw new IllegalArgumentException(NAME + " query must has field [categorys]");
         }
 
         String categoryField = (String) request.get("category_field");
         if (StringUtil.isEmpty(categoryField)) {
             categoryField = DEFAULT_CATEGORY;
         }
-        fields.put(categoryField, new FieldComputeBo().setField(categoryField).setRequire(true).setMissing(null));
         categorysList.stream().forEach(x -> {
             if (x instanceof Map) {
                 final Map<String, Object> cat = (Map) x;
-                String catCode = (String) cat.get("name");
-                String fieldMode = (String) cat.get("filed_mode");
-                List<Map> fieldsScore = (List) cat.get("fields_score");
-                String sortMode = (String) cat.get("sort_mode");
-                Double sortBaseSocre = cat.get("sort_base_socre") == null ? null : Double.parseDouble(cat.get("sort_base_socre").toString());
-                List<Map> sortScore = (List) cat.get("sort_score");
-                if (StringUtil.isEmpty(catCode) || StringUtil.isEmpty(fieldMode) || StringUtil.isEmpty(sortMode)
-                        || ((fieldsScore == null || fieldsScore.isEmpty()) && (sortScore == null || sortScore.isEmpty()))) {
-                    throw new IllegalArgumentException(NAME + " query param [categorys] has error, please check.");
-                }
-                if (sortScore != null && !sortScore.isEmpty() && (StringUtil.isEmpty(sortMode) || sortBaseSocre == null)) {
-                    throw new IllegalArgumentException(NAME + " query param [categorys] [sort_config] must has [sort_mode] and [sort_base_socre].");
-                }
+                CategoryScoreWapper csw = new CategoryScoreWapper(null, cat);
 
-                List<FieldComputeBo> fbos = new ArrayList<>();
-                for (Map fd : fieldsScore) {
-                    String field = (String) fd.get("field");
-                    Double factor = fd.get("factor") == null ? null : Double.parseDouble(fd.get("factor").toString());
-                    String modifier = (String) fd.get("modifier");
-                    Double weight = fd.get("weight") == null ? null : Double.parseDouble(fd.get("weight").toString());
-                    Double addNum = fd.get("add_num") == null ? null : Double.parseDouble(fd.get("add_num").toString());
-                    String missing = fd.get("missing") == null ? null : fd.get("missing").toString();
-                    Boolean require = (Boolean) fd.get("require");
-                    if (StringUtil.isEmpty(field) || StringUtil.isEmpty(modifier) || factor == null) {
-                        throw new IllegalArgumentException(NAME + " query param [categorys] [fields] setting has error, please check.");
-                    }
-                    FieldComputeBo fbo = new FieldComputeBo()
-                            .setField(field)
-                            .setFactor(factor)
-                            .setModifier(modifier)
-                            .setMissing(missing)
-                            .setRequire(require == null ? false : require);
-                    if(FieldComputeBo.Modifier.DECAYGEOEXP.equals(fbo.getModifier())) {
-                        String origin = (String) fd.get("origin");
-                        String scale = (String) fd.get("scale");
-                        String offset = (String) fd.get("offset");
-                        Double decay = fd.get("decay") == null ? null : Double.parseDouble(fd.get("decay").toString());
-                        if(StringUtil.isEmpty(origin) || StringUtil.isEmpty(scale) || StringUtil.isEmpty(offset) || decay == null) {
-                            throw new IllegalArgumentException(NAME + " query param [categorys] [fields_score] [modifier.decaygeoexp] setting has error, please check.");
-                        }
-                        fbo.setOrigin(origin).setScale(scale).setOffset(offset).setDecay(decay);
-                    }
-                    if (weight == null) {
-                        fbo.setWeight(1);
-                    } else {
-                        fbo.setWeight(weight);
-                    }
-                    if (addNum == null) {
-                        fbo.setAddNum(0);
-                    } else {
-                        fbo.setAddNum(addNum);
-                    }
-                    fbos.add(fbo);
-                    fields.put(field, fbo);
-                }
-
-                List<SortComputeBo> sbos = new ArrayList<>();
-                for (Map st : sortScore) {
-                    Integer weight = st.get("weight") == null ? null : Integer.parseInt(st.get("weight").toString());
-                    String field = (String) st.get("field");
-                    String type = (String) st.get("type");
-                    String value = (String) st.get("value");
-                    if (StringUtil.isEmpty(field) || weight == null) {
-                        throw new IllegalArgumentException(NAME + " query param [categorys] [fields] has error, please check.");
-                    }
-                    sbos.add(new SortComputeBo().setField(field).setWeight(weight).setValue(value).setType(type));
-
-                    fields.put(field, new FieldComputeBo().setField(field).setRequire(false));
-                }
-                if (Constants.SortMode.MAX.equals(sortMode)) {
-                    sbos.sort(Comparator.comparingInt(SortComputeBo::getWeight).reversed());
+                if (Constants.SortMode.MAX.equals(csw.getSortMode())) {
+                    csw.getScoreComputeWappers().sort(Comparator.comparingInt(SortScoreComputeWapper::getWeight).reversed());
                 } else {
-                    sbos.sort(Comparator.comparingInt(SortComputeBo::getWeight));
+                    csw.getScoreComputeWappers().sort(Comparator.comparingInt(SortScoreComputeWapper::getWeight));
                 }
-
-                for (String code : catCode.split(",")) {
-                    CategoryScoreBo cbo = new CategoryScoreBo()
-                            .setName(code).setFieldMode(fieldMode).setSortMode(sortMode).setSortBaseSocre(sortBaseSocre)
-                            .setFieldsScore(fbos).setSortScore(sbos);
-                    categorys.put(code, cbo);
+                for (String code : csw.getName().split(",")) {
+                    categorys.put(code, csw);
                 }
+                fields.putAll(csw.getAllFiled());
             } else {
                 throw new IllegalArgumentException(NAME + " query param [categorys] must be Map");
             }
         });
+        fields.put(categoryField, true);
 
         this.funcScoreFactor = funcScoreFactor;
         this.originalScoreFactor = originalScoreFactor;
@@ -206,10 +135,8 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
     protected void doWriteTo(StreamOutput out) throws IOException {
         out.writeOptionalDouble(funcScoreFactor);
         out.writeOptionalDouble(originalScoreFactor);
-        if (categorys != null && !categorys.isEmpty()) {
-            for (Map.Entry<String, CategoryScoreBo> entry : categorys.entrySet()) {
-                entry.getValue().writeTo(out);
-            }
+        for(CategoryScoreWapper x : categorys.values()) {
+            out.writeMap(x.unwrap());
         }
         out.writeOptionalString(categoryField);
     }
@@ -224,7 +151,7 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
         builder.startObject(getName());
         builder.field("func_score_factor", funcScoreFactor);
         builder.field("original_score_factor", originalScoreFactor);
-        builder.field("categorys", categorys);
+        builder.field("categorys", categorys.values().stream().map(x -> x.unwrap()).distinct().collect(Collectors.toList()));
         builder.field("category_field", categoryField);
         builder.endObject();
     }
@@ -245,11 +172,11 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
     @Override
     protected ScoreFunction doToFunction(QueryShardContext context) {
         Map<String, IndexFieldData> fieldDataMap = new HashMap<>();
-        for (Map.Entry<String, FieldComputeBo> entry : this.fieldMap.entrySet()) {
+        for (Map.Entry<String, Boolean> entry : this.fieldMap.entrySet()) {
             MappedFieldType fieldType = context.getMapperService().fullName(entry.getKey());
             IndexFieldData fieldData = null;
             if (fieldType == null) {
-                if (entry.getValue().getRequire() && entry.getValue().getMissing() == null) {
+                if (entry.getValue()) {
                     throw new ElasticsearchException("Unable to find a field mapper for field [" + entry.getKey() + "]. No 'missing' value defined.");
                 }
             } else {
@@ -265,8 +192,8 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
             throws IOException, ParsingException {
         Double funcScoreFactor;
         Double originalScoreFactor;
-        final Map<String, CategoryScoreBo> categorys = new HashMap<>();
-        final Map<String, FieldComputeBo> fields = new HashMap<>();
+        final Map<String, CategoryScoreWapper> categorys = new HashMap<>();
+        final Map<String, Boolean> fields = new HashMap<>();
 
         Map<String, Object> request = parser.map();
         if (request == null || request.isEmpty()) {
@@ -282,109 +209,41 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
         } else {
             originalScoreFactor = Double.parseDouble(request.get("original_score_factor").toString());
         }
-        List<Object> categorysList;
-        if ((categorysList = (List) request.get("categorys")) == null) {
-            throw new ParsingException(parser.getTokenLocation(), NAME + " query must has field [categorys]");
-        }
-
         if (funcScoreFactor < 0 || originalScoreFactor < 0) {
             throw new ParsingException(parser.getTokenLocation(), NAME + " query param [original_score_factor] or [func_score_factor] must be greater than 0.");
+        }
+
+        List<Object> categorysList = (List) request.get("categorys");
+        if (categorysList == null || categorysList.isEmpty()) {
+            throw new ParsingException(parser.getTokenLocation(), NAME + " query must has field [categorys]");
         }
 
         String categoryField = (String) request.get("category_field");
         if (StringUtil.isEmpty(categoryField)) {
             categoryField = DEFAULT_CATEGORY;
         }
-        fields.put(categoryField, new FieldComputeBo().setField(categoryField).setRequire(true).setMissing(null));
         categorysList.stream().forEach(x -> {
             if (x instanceof Map) {
                 final Map<String, Object> cat = (Map) x;
-                String catCode = (String) cat.get("name");
-                String fieldMode = (String) cat.get("filed_mode");
-                List<Map> fieldsScore = (List) cat.get("fields_score");
-                String sortMode = (String) cat.get("sort_mode");
-                Double sortBaseSocre = cat.get("sort_base_socre") == null ? null : Double.parseDouble(cat.get("sort_base_socre").toString());
-                List<Map> sortScore = (List) cat.get("sort_score");
-                if (StringUtil.isEmpty(catCode) || StringUtil.isEmpty(fieldMode) || StringUtil.isEmpty(sortMode)
-                        || ((fieldsScore == null || fieldsScore.isEmpty()) && (sortScore == null || sortScore.isEmpty()))) {
-                    throw new ParsingException(parser.getTokenLocation(), NAME + " query param [categorys] has error, please check.");
-                }
-                if (sortScore != null && !sortScore.isEmpty() && (StringUtil.isEmpty(sortMode) || sortBaseSocre == null)) {
-                    throw new ParsingException(parser.getTokenLocation(), NAME + " query param [categorys] [sort_config] must has [sort_mode] and [sort_base_socre].");
-                }
+                CategoryScoreWapper csw = new CategoryScoreWapper(parser, cat);
 
-                List<FieldComputeBo> fbos = new ArrayList<>();
-                for (Map fd : fieldsScore) {
-                    String field = (String) fd.get("field");
-                    Double factor = fd.get("factor") == null ? null : Double.parseDouble(fd.get("factor").toString());
-                    String modifier = (String) fd.get("modifier");
-                    Double weight = fd.get("weight") == null ? null : Double.parseDouble(fd.get("weight").toString());
-                    Double addNum = fd.get("add_num") == null ? null : Double.parseDouble(fd.get("add_num").toString());
-                    String missing = fd.get("missing") == null ? null : fd.get("missing").toString();
-                    Boolean require = (Boolean) fd.get("require");
-                    if (StringUtil.isEmpty(field) || StringUtil.isEmpty(modifier) || factor == null) {
-                        throw new ParsingException(parser.getTokenLocation(), NAME + " query param [categorys] [fields_score] setting has error, please check.");
-                    }
-                    FieldComputeBo fbo = new FieldComputeBo()
-                            .setField(field)
-                            .setFactor(factor)
-                            .setModifier(modifier)
-                            .setMissing(missing)
-                            .setRequire(require == null ? false : require);
-                    if(FieldComputeBo.Modifier.DECAYGEOEXP.equals(fbo.getModifier())) {
-                        String origin = (String) fd.get("origin");
-                        String scale = (String) fd.get("scale");
-                        String offset = (String) fd.get("offset");
-                        Double decay = fd.get("decay") == null ? null : Double.parseDouble(fd.get("decay").toString());
-                        if(StringUtil.isEmpty(origin) || StringUtil.isEmpty(scale) || StringUtil.isEmpty(offset) || decay == null) {
-                            throw new ParsingException(parser.getTokenLocation(), NAME + " query param [categorys] [fields_score] [modifier.decaygeoexp] setting has error, please check.");
-                        }
-                        fbo.setOrigin(origin).setScale(scale).setOffset(offset).setDecay(decay);
-                    }
-                    if (weight == null) {
-                        fbo.setWeight(1);
-                    } else {
-                        fbo.setWeight(weight);
-                    }
-                    if (addNum == null) {
-                        fbo.setAddNum(0);
-                    } else {
-                        fbo.setAddNum(addNum);
-                    }
-                    fbos.add(fbo);
-                    fields.put(field, fbo);
-                }
-
-                List<SortComputeBo> sbos = new ArrayList<>();
-                for (Map st : sortScore) {
-                    Integer weight = st.get("weight") == null ? null : Integer.parseInt(st.get("weight").toString());
-                    String field = (String) st.get("field");
-                    String type = (String) st.get("type");
-                    String value = (String) st.get("value");
-                    if (StringUtil.isEmpty(field) || weight == null) {
-                        throw new ParsingException(parser.getTokenLocation(), NAME + " query param [categorys] [sort_score] setting has error, please check.");
-                    }
-                    sbos.add(new SortComputeBo().setField(field).setWeight(weight).setValue(value).setType(type));
-
-                    fields.put(field, new FieldComputeBo().setField(field).setRequire(false));
-                }
-                if (Constants.SortMode.MAX.equals(sortMode)) {
-                    sbos.sort(Comparator.comparingInt(SortComputeBo::getWeight).reversed());
+                if (Constants.SortMode.MAX.equals(csw.getSortMode())) {
+                    csw.getScoreComputeWappers().sort(Comparator.comparingInt(SortScoreComputeWapper::getWeight).reversed());
                 } else {
-                    sbos.sort(Comparator.comparingInt(SortComputeBo::getWeight));
+                    csw.getScoreComputeWappers().sort(Comparator.comparingInt(SortScoreComputeWapper::getWeight));
                 }
-                for (String code : catCode.split(",")) {
-                    CategoryScoreBo cbo = new CategoryScoreBo().setName(code).setFieldMode(fieldMode).setSortMode(sortMode)
-                            .setSortBaseSocre(sortBaseSocre).setFieldsScore(fbos).setSortScore(sbos);
-                    categorys.put(code, cbo);
+                for (String code : csw.getName().split(",")) {
+                    categorys.put(code, csw);
                 }
+                fields.putAll(csw.getAllFiled());
             } else {
                 throw new ParsingException(parser.getTokenLocation(), NAME + " query param [categorys] must be Map");
             }
         });
 
+        fields.put(categoryField, true);
         ComplexFieldFunctionBuilder complexFieldFunctionBuilder = new ComplexFieldFunctionBuilder(funcScoreFactor, originalScoreFactor
-                , categorys, fields, categoryField);
+                , categorys, categoryField, fields);
         return complexFieldFunctionBuilder;
     }
 }

@@ -5,8 +5,8 @@ import org.elasticsearch.common.xcontent.XContentParser;
 import org.lccy.elasticsearch.plugin.function.ComplexFieldFunctionBuilder;
 import org.lccy.elasticsearch.plugin.function.Constants;
 import org.lccy.elasticsearch.plugin.util.StringUtil;
-import sun.tools.java.Type;
 
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -57,6 +57,11 @@ public class SortScoreComputeWapper {
         } else {
             throw new IllegalArgumentException(msg);
         }
+    }
+
+    public String getExpression(double sortBaseSocre) {
+        String oper = Constants.SortValueType.NOT.equals(this.getType()) ? "!=" : "=";
+        return String.format(Locale.ROOT,"if %s %s %s, then exec %s * %f, else do nothing.", getField(), oper, getValue(), getWeight().toString(), sortBaseSocre);
     }
 
     public boolean match(String[] values) {

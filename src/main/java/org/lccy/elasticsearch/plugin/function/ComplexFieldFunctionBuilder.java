@@ -174,15 +174,20 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
         Map<String, IndexFieldData> fieldDataMap = new HashMap<>();
         for (Map.Entry<String, Boolean> entry : this.fieldMap.entrySet()) {
             MappedFieldType fieldType = context.getMapperService().fullName(entry.getKey());
-            IndexFieldData fieldData = null;
             if (fieldType == null) {
                 if (entry.getValue()) {
                     throw new ElasticsearchException("Unable to find a field mapper for field [" + entry.getKey() + "]. No 'missing' value defined.");
                 }
             } else {
-                fieldData = context.getForField(fieldType);
+                IndexFieldData fieldData = context.getForField(fieldType);
+                if(fieldData == null) {
+                    if (entry.getValue()) {
+                        throw new ElasticsearchException("Unable to find a field mapper for field [" + entry.getKey() + "]. No 'missing' value defined.");
+                    }
+                } else {
+                    fieldDataMap.put(entry.getKey(), fieldData);
+                }
             }
-            fieldDataMap.put(entry.getKey(), fieldData);
         }
 
         return new ComplexFieldFunction(funcScoreFactor, originalScoreFactor, categorys, fieldDataMap, categoryField);

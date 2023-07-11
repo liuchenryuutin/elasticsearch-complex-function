@@ -139,7 +139,7 @@ public class ComplexFieldFunction extends ScoreFunction {
                 double sortScoreTotal = 0;
                 if (cbo.getScoreComputeWappers() != null && !cbo.getScoreComputeWappers().isEmpty()) {
                     String sortMode = cbo.getSortMode();
-                    double sortBaseScore = cbo.getSortBaseSocre();
+                    double sortBaseScore = cbo.getSortBaseScore();
                     for (SortScoreComputeWapper sbo : cbo.getScoreComputeWappers()) {
 //                        System.out.println("sortField:" + sbo.getField() + ", sortBaseScore:" +  sortBaseScore + ", values class:" + fieldDataMap.get(sbo.getField()));
                         String[] fVal = getStrValArray(docId, (SortedSetDocValues) fieldDataMap.get(sbo.getField()));
@@ -225,7 +225,7 @@ public class ComplexFieldFunction extends ScoreFunction {
                 Explanation sortExplain = null;
                 if (cbo.getScoreComputeWappers() != null && !cbo.getScoreComputeWappers().isEmpty()) {
                     String sortMode = cbo.getSortMode();
-                    double sortBaseScore = cbo.getSortBaseSocre();
+                    double sortBaseScore = cbo.getSortBaseScore();
                     List<Explanation> sortExplanList = new ArrayList<>();
                     for (SortScoreComputeWapper sbo : cbo.getScoreComputeWappers()) {
                         String[] fVal = getStrValArray(docId, (SortedSetDocValues) fieldDataMap.get(sbo.getField()));
@@ -241,7 +241,7 @@ public class ComplexFieldFunction extends ScoreFunction {
                             break;
                         }
                     }
-                    sortExplain = Explanation.match(sortScoreTotal, String.format(Locale.ROOT, "Compute sortScoreTotal, sort_mode:[%s], sort_base_socre:[%f] ", sortMode, sortBaseScore), sortExplanList);
+                    sortExplain = Explanation.match(sortScoreTotal, String.format(Locale.ROOT, "Compute sortScoreTotal, sort_mode:[%s], sort_base_score:[%f] ", sortMode, sortBaseScore), sortExplanList);
                 }
 
                 // 因为要支持function_score替换相关度评分，直接boost_mode=replace，会导致相关度不计算。@link org.elasticsearch.common.lucene.search.function.FunctionScoreQuery.createWeight

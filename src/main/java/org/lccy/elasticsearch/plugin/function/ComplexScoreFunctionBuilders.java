@@ -1,20 +1,17 @@
 package org.lccy.elasticsearch.plugin.function;
 
-import org.elasticsearch.index.query.functionscore.FieldValueFactorFunctionBuilder;
 import org.elasticsearch.index.query.functionscore.ScoreFunctionBuilders;
 import org.lccy.elasticsearch.plugin.function.bo.CategoryScoreWapper;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * 类名称： <br>
- * 类描述： <br>
+ * build tool class <br>
  *
- * @Date: 2023/07/11 17:51 <br>
- * @author: liuchen11
+ * @author liuchen <br>
+ * @date 2023-07-11
  */
 public class ComplexScoreFunctionBuilders extends ScoreFunctionBuilders {
 

@@ -19,8 +19,8 @@ import java.util.Objects;
 /**
  * wrap field score query param <br>
  *
- * @Date: 2023/07/11 09:47 <br>
- * @author: liuchen11
+ * @author liuchen <br>
+ * @date 2023-07-11
  */
 public class FieldScoreComputeWapper {
 
@@ -45,12 +45,12 @@ public class FieldScoreComputeWapper {
         if (StringUtil.isEmpty(field) || StringUtil.isEmpty(modifier) || factor == null) {
             throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [categorys.fields_score] set error, please check.");
         }
-        if(Modifier.DECAYGEOEXP.toString().equals(modifier)) {
+        if (Modifier.DECAYGEOEXP.toString().equals(modifier)) {
             String origin = (String) fd.get(ORIGIN);
             String scale = (String) fd.get(SCALE);
             String offset = (String) fd.get(OFFSET);
             Double decay = fd.get(DECAY) == null ? null : Double.parseDouble(fd.get(DECAY).toString());
-            if(StringUtil.isEmpty(origin) || StringUtil.isEmpty(scale) || StringUtil.isEmpty(offset) || decay == null) {
+            if (StringUtil.isEmpty(origin) || StringUtil.isEmpty(scale) || StringUtil.isEmpty(offset) || decay == null) {
                 throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [categorys.fields_score.modifier.decaygeoexp] set error, please check.");
             }
         }
@@ -108,7 +108,7 @@ public class FieldScoreComputeWapper {
     }
 
     private void throwsException(XContentParser parser, String msg) {
-        if(parser != null) {
+        if (parser != null) {
             throw new ParsingException(parser.getTokenLocation(), msg);
         } else {
             throw new IllegalArgumentException(msg);
@@ -127,7 +127,7 @@ public class FieldScoreComputeWapper {
      */
     public double computeScore(Object value) {
         double fieldScore;
-        if(value instanceof GeoPoint) {
+        if (value instanceof GeoPoint) {
             fieldScore = new ScoreScriptUtils.DecayGeoExp(getOrigin(), getScale(), getOffset(), getDecay()).decayGeoExp((GeoPoint) value);
         } else {
             fieldScore = this.getModifier().apply((Double) value);

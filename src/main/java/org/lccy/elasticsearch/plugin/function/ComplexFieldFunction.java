@@ -33,12 +33,13 @@ import org.elasticsearch.index.fielddata.MultiGeoPointValues;
 import org.elasticsearch.index.fielddata.SortedNumericDoubleValues;
 import org.elasticsearch.index.fielddata.plain.AbstractLatLonPointDVIndexFieldData;
 import org.elasticsearch.index.fielddata.plain.SortedSetDVOrdinalsIndexFieldData;
-import org.lccy.elasticsearch.plugin.function.bo.*;
+import org.lccy.elasticsearch.plugin.function.bo.CategoryScoreWapper;
+import org.lccy.elasticsearch.plugin.function.bo.FieldScoreComputeWapper;
+import org.lccy.elasticsearch.plugin.function.bo.SortScoreComputeWapper;
 import org.lccy.elasticsearch.plugin.util.StringUtil;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * A complex_field_score function that multiplies the score with the param settings.
@@ -105,7 +106,7 @@ public class ComplexFieldFunction extends ScoreFunction {
 
                         // get field value.
                         Object fVal;
-                        if(FieldScoreComputeWapper.Modifier.DECAYGEOEXP.equals(fbo.getModifier())) {
+                        if (FieldScoreComputeWapper.Modifier.DECAYGEOEXP.equals(fbo.getModifier())) {
                             fVal = getGeoPoint(docId, (MultiGeoPointValues) fieldDataMap.get(fbo.getField()));
                             if (fVal == null) {
                                 if (!fbo.getRequire()) {
@@ -181,7 +182,7 @@ public class ComplexFieldFunction extends ScoreFunction {
                         // get field value.
                         Object fVal;
                         boolean useMissing = false;
-                        if(FieldScoreComputeWapper.Modifier.DECAYGEOEXP.equals(fbo.getModifier())) {
+                        if (FieldScoreComputeWapper.Modifier.DECAYGEOEXP.equals(fbo.getModifier())) {
                             fVal = getGeoPoint(docId, (MultiGeoPointValues) fieldDataMap.get(fbo.getField()));
                             if (fVal == null) {
                                 if (!fbo.getRequire()) {
@@ -192,7 +193,7 @@ public class ComplexFieldFunction extends ScoreFunction {
                                     GeoPoint missing = new GeoPoint();
                                     missing.resetFromString(fbo.getMissing());
                                     fVal = missing;
-                                    useMissing= true;
+                                    useMissing = true;
                                 }
                             }
                         } else {
@@ -204,7 +205,7 @@ public class ComplexFieldFunction extends ScoreFunction {
                                     throw new IllegalArgumentException("require field " + fbo.getField() + "must has a value or has a missing value");
                                 } else {
                                     fVal = Double.parseDouble(fbo.getMissing());
-                                    useMissing= true;
+                                    useMissing = true;
                                 }
                             }
                         }
@@ -213,7 +214,7 @@ public class ComplexFieldFunction extends ScoreFunction {
 
                         fieldScoreTotal = mergeFieldScore(fieldMode, fieldScoreTotal, fieldScore);
 
-                        Explanation fex = Explanation.match(fieldScore, String.format(Locale.ROOT,"Compute field:[%s], using missing:[%s], expression:[%s].",
+                        Explanation fex = Explanation.match(fieldScore, String.format(Locale.ROOT, "Compute field:[%s], using missing:[%s], expression:[%s].",
                                 fbo.getField(), useMissing, fbo.getExpression(fVal)));
                         fieldExplanList.add(fex);
                     }
@@ -235,7 +236,7 @@ public class ComplexFieldFunction extends ScoreFunction {
                         if (sbo.match(fVal)) {
                             double sortScore = sbo.getWeight() * sortBaseScore;
                             sortScoreTotal = mergeSortScore(sortMode, sortScoreTotal, sortScore);
-                            Explanation sortEx = Explanation.match(sortScore, String.format(Locale.ROOT,"Compute sort field:[%s], value:[%s], expression:[%s].",
+                            Explanation sortEx = Explanation.match(sortScore, String.format(Locale.ROOT, "Compute sort field:[%s], value:[%s], expression:[%s].",
                                     sbo.getField(), Arrays.toString(fVal), sbo.getExpression(sortBaseScore)));
                             sortExplanList.add(sortEx);
                             break;
@@ -250,10 +251,10 @@ public class ComplexFieldFunction extends ScoreFunction {
                 float subScore = subQueryScore.getValue().floatValue();
                 double score = funcScoreFactor * fieldScoreTotal + originalScoreFactor * subScore + sortScoreTotal - subScore;
                 List<Explanation> resList = new ArrayList<>();
-                if(fieldsExplain != null) {
+                if (fieldsExplain != null) {
                     resList.add(fieldsExplain);
                 }
-                if(sortExplain != null) {
+                if (sortExplain != null) {
                     resList.add(sortExplain);
                 }
                 Explanation result = Explanation.match(

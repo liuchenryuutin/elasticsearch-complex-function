@@ -2,9 +2,7 @@ package org.lccy.elasticsearch.plugin.function.bo;
 
 import org.elasticsearch.common.ParsingException;
 import org.elasticsearch.common.xcontent.XContentParser;
-import org.lccy.elasticsearch.plugin.function.ComplexFieldFunction;
 import org.lccy.elasticsearch.plugin.function.ComplexFieldFunctionBuilder;
-import org.lccy.elasticsearch.plugin.function.Constants;
 import org.lccy.elasticsearch.plugin.util.StringUtil;
 
 import java.util.*;
@@ -12,8 +10,8 @@ import java.util.*;
 /**
  * wrap category query param <br>
  *
- * @Date: 2023/07/11 09:18 <br>
- * @author: liuchen
+ * @author liuchen <br>
+ * @date 2023-07-11
  */
 public class CategoryScoreWapper {
 
@@ -45,7 +43,7 @@ public class CategoryScoreWapper {
             throwsException(parser, NAME + " query param [categorys.sort_config] must has [sort_mode] and [sort_base_score].");
         }
 
-        if(fieldsScore != null && !fieldsScore.isEmpty()) {
+        if (fieldsScore != null && !fieldsScore.isEmpty()) {
             fieldScoreWappers = new ArrayList<>();
         }
         for (Map fd : fieldsScore) {
@@ -53,7 +51,7 @@ public class CategoryScoreWapper {
             fieldScoreWappers.add(fscw);
         }
 
-        if(sortScore != null && !sortScore.isEmpty()) {
+        if (sortScore != null && !sortScore.isEmpty()) {
             scoreComputeWappers = new ArrayList<>();
         }
         for (Map st : sortScore) {
@@ -95,18 +93,18 @@ public class CategoryScoreWapper {
 
     public Map<String, Boolean> getAllFiled() {
         Map<String, Boolean> result = new HashMap<>();
-        if(fieldScoreWappers != null && !fieldScoreWappers.isEmpty()) {
+        if (fieldScoreWappers != null && !fieldScoreWappers.isEmpty()) {
             fieldScoreWappers.forEach(x -> result.put(x.getField(), x.getRequire() && x.getMissing() == null));
         }
 
-        if(scoreComputeWappers != null && !scoreComputeWappers.isEmpty()) {
+        if (scoreComputeWappers != null && !scoreComputeWappers.isEmpty()) {
             scoreComputeWappers.forEach(x -> result.put(x.getField(), false));
         }
         return result;
     }
 
     private void throwsException(XContentParser parser, String msg) {
-        if(parser != null) {
+        if (parser != null) {
             throw new ParsingException(parser.getTokenLocation(), msg);
         } else {
             throw new IllegalArgumentException(msg);

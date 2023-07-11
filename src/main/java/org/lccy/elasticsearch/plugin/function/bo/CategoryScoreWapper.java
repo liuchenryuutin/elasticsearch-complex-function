@@ -10,11 +10,10 @@ import org.lccy.elasticsearch.plugin.util.StringUtil;
 import java.util.*;
 
 /**
- * 类名称： <br>
- * 类描述： <br>
+ * wrap category query param <br>
  *
  * @Date: 2023/07/11 09:18 <br>
- * @author: liuchen11
+ * @author: liuchen
  */
 public class CategoryScoreWapper {
 

@@ -17,8 +17,7 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * 类名称： <br>
- * 类描述： <br>
+ * wrap field score query param <br>
  *
  * @Date: 2023/07/11 09:47 <br>
  * @author: liuchen11

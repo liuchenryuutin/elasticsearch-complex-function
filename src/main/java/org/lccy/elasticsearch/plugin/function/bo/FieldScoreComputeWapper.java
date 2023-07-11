@@ -116,6 +116,10 @@ public class FieldScoreComputeWapper {
         }
     }
 
+    public String getExpression(Object val) {
+        return String.format("(%f + %f * %s(%s)) * %f", getAddNum(), getFactor(), getModifier().toString(), val.toString(), getWeight());
+    }
+
     /**
      * calculate score based on value
      *

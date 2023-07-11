@@ -110,7 +110,7 @@ public class ComplexFieldFunction extends ScoreFunction {
                             if (fVal == null) {
                                 if (!fbo.getRequire()) {
                                     continue;
-                                } else if (fbo.getRequire() && fbo.getMissing() == null) {
+                                } else if (fbo.getRequire() && StringUtil.isEmpty(fbo.getMissing())) {
                                     throw new IllegalArgumentException("require field " + fbo.getField() + "must has a value or has a missing value");
                                 } else {
                                     GeoPoint missing = new GeoPoint();
@@ -123,7 +123,7 @@ public class ComplexFieldFunction extends ScoreFunction {
                             if (fVal == null) {
                                 if (!fbo.getRequire()) {
                                     continue;
-                                } else if (fbo.getRequire() && fbo.getMissing() == null) {
+                                } else if (fbo.getRequire() && StringUtil.isEmpty(fbo.getMissing())) {
                                     throw new IllegalArgumentException("require field " + fbo.getField() + "must has a value or has a missing value");
                                 } else {
                                     fVal = Double.parseDouble(fbo.getMissing());
@@ -165,12 +165,103 @@ public class ComplexFieldFunction extends ScoreFunction {
 
             @Override
             public Explanation explainScore(int docId, Explanation subQueryScore) throws IOException {
-                double score = score(docId, subQueryScore.getValue().floatValue());
-                return Explanation.match(
+                String categoryCode = getStrVal(docId, (SortedSetDocValues) fieldDataMap.get(categoryField));
+                CategoryScoreWapper cbo;
+                if (StringUtil.isEmpty(categoryCode) || (cbo = categorys.get(categoryCode)) == null) {
+                    return Explanation.match(0, "category not mapping.");
+                }
+
+                double fieldScoreTotal = 0;
+                Explanation fieldsExplain = null;
+                if (cbo.getFieldScoreWappers() != null && !cbo.getFieldScoreWappers().isEmpty()) {
+                    String fieldMode = cbo.getFieldMode();
+                    List<Explanation> fieldExplanList = new ArrayList<>();
+                    for (FieldScoreComputeWapper fbo : cbo.getFieldScoreWappers()) {
+
+                        // get field value.
+                        Object fVal;
+                        boolean useMissing = false;
+                        if(FieldScoreComputeWapper.Modifier.DECAYGEOEXP.equals(fbo.getModifier())) {
+                            fVal = getGeoPoint(docId, (MultiGeoPointValues) fieldDataMap.get(fbo.getField()));
+                            if (fVal == null) {
+                                if (!fbo.getRequire()) {
+                                    continue;
+                                } else if (fbo.getRequire() && StringUtil.isEmpty(fbo.getMissing())) {
+                                    throw new IllegalArgumentException("require field " + fbo.getField() + "must has a value or has a missing value");
+                                } else {
+                                    GeoPoint missing = new GeoPoint();
+                                    missing.resetFromString(fbo.getMissing());
+                                    fVal = missing;
+                                    useMissing= true;
+                                }
+                            }
+                        } else {
+                            fVal = getDoubleVal(docId, (SortedNumericDoubleValues) fieldDataMap.get(fbo.getField()));
+                            if (fVal == null) {
+                                if (!fbo.getRequire()) {
+                                    continue;
+                                } else if (fbo.getRequire() && StringUtil.isEmpty(fbo.getMissing())) {
+                                    throw new IllegalArgumentException("require field " + fbo.getField() + "must has a value or has a missing value");
+                                } else {
+                                    fVal = Double.parseDouble(fbo.getMissing());
+                                    useMissing= true;
+                                }
+                            }
+                        }
+
+                        double fieldScore = fbo.computeScore(fVal);
+
+                        fieldScoreTotal = mergeFieldScore(fieldMode, fieldScoreTotal, fieldScore);
+
+                        Explanation fex = Explanation.match(fieldScore, String.format(Locale.ROOT,"Compute field:[%s], using missing:[%s], expression:[%s].",
+                                fbo.getField(), useMissing, fbo.getExpression(fVal)));
+                        fieldExplanList.add(fex);
+                    }
+
+                    fieldsExplain = Explanation.match(fieldScoreTotal, String.format(Locale.ROOT, "Compute fieldScoreTotal, filed_mode:[%s].", fieldMode), fieldExplanList);
+                }
+
+                double sortScoreTotal = 0;
+                Explanation sortExplain = null;
+                if (cbo.getScoreComputeWappers() != null && !cbo.getScoreComputeWappers().isEmpty()) {
+                    String sortMode = cbo.getSortMode();
+                    double sortBaseScore = cbo.getSortBaseSocre();
+                    List<Explanation> sortExplanList = new ArrayList<>();
+                    for (SortScoreComputeWapper sbo : cbo.getScoreComputeWappers()) {
+                        String[] fVal = getStrValArray(docId, (SortedSetDocValues) fieldDataMap.get(sbo.getField()));
+                        if (fVal == null) {
+                            continue;
+                        }
+                        if (sbo.match(fVal)) {
+                            double sortScore = sbo.getWeight() * sortBaseScore;
+                            sortScoreTotal = mergeSortScore(sortMode, sortScoreTotal, sortScore);
+                            Explanation sortEx = Explanation.match(sortScore, String.format(Locale.ROOT,"Compute sort field:[%s], value:[%s], expression:[%s].",
+                                    sbo.getField(), Arrays.toString(fVal), sbo.getExpression(sortBaseScore)));
+                            sortExplanList.add(sortEx);
+                            break;
+                        }
+                    }
+                    sortExplain = Explanation.match(sortScoreTotal, String.format(Locale.ROOT, "Compute sortScoreTotal, sort_mode:[%s], sort_base_socre:[%f] ", sortMode, sortBaseScore), sortExplanList);
+                }
+
+                // 因为要支持function_score替换相关度评分，直接boost_mode=replace，会导致相关度不计算。@link org.elasticsearch.common.lucene.search.function.FunctionScoreQuery.createWeight
+                // 只有将boost_mode=sum，才会计算相关度。要减去subQueryScore是为了去除相关度的评分
+                // 因为已经在公式中使用subQueryScore进行了占比计算，所以这里要去除
+                float subScore = subQueryScore.getValue().floatValue();
+                double score = funcScoreFactor * fieldScoreTotal + originalScoreFactor * subScore + sortScoreTotal - subScore;
+                List<Explanation> resList = new ArrayList<>();
+                if(fieldsExplain != null) {
+                    resList.add(fieldsExplain);
+                }
+                if(sortExplain != null) {
+                    resList.add(sortExplain);
+                }
+                Explanation result = Explanation.match(
                         (float) score,
                         String.format(Locale.ROOT,
-                                "complex_field_score function, subQueryScoreRate[%f], fieldScoreRate[%f], subQueryScore: [%f], complexScore: [%f], fiels:[%s]",
-                                funcScoreFactor, originalScoreFactor, subQueryScore.getValue().floatValue(), score, fieldMap.keySet().stream().collect(Collectors.joining(","))));
+                                "Compute complex_field_score, subScore:[%f] expression: [%f * fieldScoreTotal + %f * subScore + sortScoreTotal - subScore]",
+                                subScore, funcScoreFactor, originalScoreFactor), resList);
+                return result;
             }
         };
     }
@@ -188,6 +279,9 @@ public class ComplexFieldFunction extends ScoreFunction {
     }
 
     public String[] getStrValArray(int docId, SortedSetDocValues values) throws IOException {
+        if (values == null) {
+            return null;
+        }
         if (values.advanceExact(docId) && values.getValueCount() <= 0) {
             return null;
         }
@@ -202,6 +296,9 @@ public class ComplexFieldFunction extends ScoreFunction {
     }
 
     public Double getDoubleVal(int docId, SortedNumericDoubleValues values) throws IOException {
+        if (values == null) {
+            return null;
+        }
         if (values.advanceExact(docId)) {
             return values.nextValue();
         } else {
@@ -210,6 +307,9 @@ public class ComplexFieldFunction extends ScoreFunction {
     }
 
     public GeoPoint getGeoPoint(int docId, MultiGeoPointValues values) throws IOException {
+        if (values == null) {
+            return null;
+        }
         if (values.advanceExact(docId)) {
             return values.nextValue();
         } else {

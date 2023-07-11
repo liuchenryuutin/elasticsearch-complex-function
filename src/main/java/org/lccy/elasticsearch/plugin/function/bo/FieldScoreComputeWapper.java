@@ -44,7 +44,7 @@ public class FieldScoreComputeWapper {
         Double factor = fd.get(FACTOR) == null ? null : Double.parseDouble(fd.get(FACTOR).toString());
         String modifier = (String) fd.get(MODIFIER);
         if (StringUtil.isEmpty(field) || StringUtil.isEmpty(modifier) || factor == null) {
-            throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [categorys] [fields_score] setting has error, please check.");
+            throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [categorys.fields_score] set error, please check.");
         }
         if(Modifier.DECAYGEOEXP.toString().equals(modifier)) {
             String origin = (String) fd.get(ORIGIN);
@@ -52,7 +52,7 @@ public class FieldScoreComputeWapper {
             String offset = (String) fd.get(OFFSET);
             Double decay = fd.get(DECAY) == null ? null : Double.parseDouble(fd.get(DECAY).toString());
             if(StringUtil.isEmpty(origin) || StringUtil.isEmpty(scale) || StringUtil.isEmpty(offset) || decay == null) {
-                throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [categorys] [fields_score] [modifier.decaygeoexp] setting has error, please check.");
+                throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [categorys.fields_score.modifier.decaygeoexp] set error, please check.");
             }
         }
         this.fieldScore = fd;

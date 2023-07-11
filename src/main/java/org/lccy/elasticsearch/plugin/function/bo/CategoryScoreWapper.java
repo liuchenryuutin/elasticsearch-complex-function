@@ -22,7 +22,7 @@ public class CategoryScoreWapper {
     public static final String FILED_MODE = "filed_mode";
     public static final String FIELDS_SCORE = "fields_score";
     public static final String SORT_MODE = "sort_mode";
-    public static final String SORT_BASE_SOCRE = "sort_base_socre";
+    public static final String SORT_BASE_SCORE = "sort_base_score";
     public static final String SORT_SCORE = "sort_score";
 
     // wrap data
@@ -36,14 +36,14 @@ public class CategoryScoreWapper {
         String fieldMode = (String) categorys.get(FILED_MODE);
         List<Map> fieldsScore = (List) categorys.get(FIELDS_SCORE);
         String sortMode = (String) categorys.get(SORT_MODE);
-        Double sortBaseSocre = categorys.get(SORT_BASE_SOCRE) == null ? null : Double.parseDouble(categorys.get(SORT_BASE_SOCRE).toString());
+        Double sortBaseSocre = categorys.get(SORT_BASE_SCORE) == null ? null : Double.parseDouble(categorys.get(SORT_BASE_SCORE).toString());
         List<Map> sortScore = (List) categorys.get(SORT_SCORE);
         if (StringUtil.isEmpty(catCode) || StringUtil.isEmpty(fieldMode) || StringUtil.isEmpty(sortMode)
                 || ((fieldsScore == null || fieldsScore.isEmpty()) && (sortScore == null || sortScore.isEmpty()))) {
-            throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [categorys] has error, please check.");
+            throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [categorys] set error, please check.");
         }
         if (sortScore != null && !sortScore.isEmpty() && (StringUtil.isEmpty(sortMode) || sortBaseSocre == null)) {
-            throwsException(parser, NAME + " query param [categorys] [sort_config] must has [sort_mode] and [sort_base_socre].");
+            throwsException(parser, NAME + " query param [categorys.sort_config] must has [sort_mode] and [sort_base_score].");
         }
 
         if(fieldsScore != null && !fieldsScore.isEmpty()) {
@@ -78,8 +78,8 @@ public class CategoryScoreWapper {
         return (String) categorys.get(SORT_MODE);
     }
 
-    public Double getSortBaseSocre() {
-        return Double.parseDouble(categorys.get(SORT_BASE_SOCRE).toString());
+    public Double getSortBaseScore() {
+        return Double.parseDouble(categorys.get(SORT_BASE_SCORE).toString());
     }
 
     public Map<String, Object> unwrap() {

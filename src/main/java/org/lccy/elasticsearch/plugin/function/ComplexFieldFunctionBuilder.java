@@ -52,19 +52,31 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
     private final Double originalScoreFactor;
     private final String categoryField;
     private final Map<String, CategoryScoreWapper> categorys;
-    private final Map<String, Boolean> fieldMap;
+    private Map<String, Boolean> fieldMap;
 
     public ComplexFieldFunctionBuilder(Double funcScoreFactor, Double originalScoreFactor, Map<String, CategoryScoreWapper> categorys
             , String categoryField, Map<String, Boolean> fieldMap) {
         if (funcScoreFactor == null || funcScoreFactor < 0 || originalScoreFactor == null || originalScoreFactor < 0
                 || categorys == null || categorys.isEmpty() || StringUtil.isEmpty(categoryField)) {
-            throw new IllegalArgumentException("error params, please check.");
+            throw new IllegalArgumentException("require param is not set, please check.");
         }
         this.funcScoreFactor = funcScoreFactor;
         this.originalScoreFactor = originalScoreFactor;
         this.categorys = categorys;
         this.categoryField = categoryField;
         this.fieldMap = fieldMap;
+    }
+
+    public ComplexFieldFunctionBuilder(Double funcScoreFactor, Double originalScoreFactor, Map<String, CategoryScoreWapper> categorys
+            , String categoryField) {
+        if (funcScoreFactor == null || funcScoreFactor < 0 || originalScoreFactor == null || originalScoreFactor < 0
+                || categorys == null || categorys.isEmpty() || StringUtil.isEmpty(categoryField)) {
+            throw new IllegalArgumentException("require param is not set, please check.");
+        }
+        this.funcScoreFactor = funcScoreFactor;
+        this.originalScoreFactor = originalScoreFactor;
+        this.categorys = categorys;
+        this.categoryField = categoryField;
     }
 
     /**

@@ -4,7 +4,7 @@ import org.elasticsearch.common.ParsingException;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.lccy.elasticsearch.plugin.function.ComplexFieldFunctionBuilder;
 import org.lccy.elasticsearch.plugin.function.Constants;
-import org.lccy.elasticsearch.plugin.util.StringUtil;
+import org.lccy.elasticsearch.plugin.util.CommonUtil;
 
 import java.util.Locale;
 import java.util.Map;
@@ -28,7 +28,7 @@ public class SortScoreComputeWapper {
     public SortScoreComputeWapper(XContentParser parser, Map<String, Object> st) {
         Integer weight = st.get(WEIGHT) == null ? null : Integer.parseInt(st.get(WEIGHT).toString());
         String field = (String) st.get(FIELD);
-        if (StringUtil.isEmpty(field) || weight == null) {
+        if (CommonUtil.isEmpty(field) || weight == null) {
             throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [categorys] [sort_score] setting has error, please check.");
         }
         this.sortScore = st;

@@ -36,7 +36,7 @@ import org.elasticsearch.index.fielddata.plain.SortedSetDVOrdinalsIndexFieldData
 import org.lccy.elasticsearch.plugin.function.bo.CategoryScoreWapper;
 import org.lccy.elasticsearch.plugin.function.bo.FieldScoreComputeWapper;
 import org.lccy.elasticsearch.plugin.function.bo.SortScoreComputeWapper;
-import org.lccy.elasticsearch.plugin.util.StringUtil;
+import org.lccy.elasticsearch.plugin.util.CommonUtil;
 
 import java.io.IOException;
 import java.util.*;
@@ -93,7 +93,7 @@ public class ComplexFieldFunction extends ScoreFunction {
 
                 String categoryCode = getStrVal(docId, (SortedSetDocValues) fieldDataMap.get(categoryField));
                 CategoryScoreWapper cbo;
-                if (StringUtil.isEmpty(categoryCode) || (cbo = categorys.get(categoryCode)) == null) {
+                if (CommonUtil.isEmpty(categoryCode) || (cbo = categorys.get(categoryCode)) == null) {
                     return 0;
                 }
 //                System.out.println("categoryCode:" + categoryCode + ", sub socre:" +  subQueryScore);
@@ -111,7 +111,7 @@ public class ComplexFieldFunction extends ScoreFunction {
                             if (fVal == null) {
                                 if (!fbo.getRequire()) {
                                     continue;
-                                } else if (fbo.getRequire() && StringUtil.isEmpty(fbo.getMissing())) {
+                                } else if (fbo.getRequire() && CommonUtil.isEmpty(fbo.getMissing())) {
                                     throw new IllegalArgumentException("require field " + fbo.getField() + "must has a value or has a missing value");
                                 } else {
                                     GeoPoint missing = new GeoPoint();
@@ -124,7 +124,7 @@ public class ComplexFieldFunction extends ScoreFunction {
                             if (fVal == null) {
                                 if (!fbo.getRequire()) {
                                     continue;
-                                } else if (fbo.getRequire() && StringUtil.isEmpty(fbo.getMissing())) {
+                                } else if (fbo.getRequire() && CommonUtil.isEmpty(fbo.getMissing())) {
                                     throw new IllegalArgumentException("require field " + fbo.getField() + "must has a value or has a missing value");
                                 } else {
                                     fVal = Double.parseDouble(fbo.getMissing());
@@ -168,7 +168,7 @@ public class ComplexFieldFunction extends ScoreFunction {
             public Explanation explainScore(int docId, Explanation subQueryScore) throws IOException {
                 String categoryCode = getStrVal(docId, (SortedSetDocValues) fieldDataMap.get(categoryField));
                 CategoryScoreWapper cbo;
-                if (StringUtil.isEmpty(categoryCode) || (cbo = categorys.get(categoryCode)) == null) {
+                if (CommonUtil.isEmpty(categoryCode) || (cbo = categorys.get(categoryCode)) == null) {
                     return Explanation.match(0, "category not mapping.");
                 }
 
@@ -187,7 +187,7 @@ public class ComplexFieldFunction extends ScoreFunction {
                             if (fVal == null) {
                                 if (!fbo.getRequire()) {
                                     continue;
-                                } else if (fbo.getRequire() && StringUtil.isEmpty(fbo.getMissing())) {
+                                } else if (fbo.getRequire() && CommonUtil.isEmpty(fbo.getMissing())) {
                                     throw new IllegalArgumentException("require field " + fbo.getField() + "must has a value or has a missing value");
                                 } else {
                                     GeoPoint missing = new GeoPoint();
@@ -201,7 +201,7 @@ public class ComplexFieldFunction extends ScoreFunction {
                             if (fVal == null) {
                                 if (!fbo.getRequire()) {
                                     continue;
-                                } else if (fbo.getRequire() && StringUtil.isEmpty(fbo.getMissing())) {
+                                } else if (fbo.getRequire() && CommonUtil.isEmpty(fbo.getMissing())) {
                                     throw new IllegalArgumentException("require field " + fbo.getField() + "must has a value or has a missing value");
                                 } else {
                                     fVal = Double.parseDouble(fbo.getMissing());

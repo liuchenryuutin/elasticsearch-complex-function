@@ -9,7 +9,7 @@ import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.script.ScoreScriptUtils;
 import org.lccy.elasticsearch.plugin.function.ComplexFieldFunctionBuilder;
-import org.lccy.elasticsearch.plugin.util.StringUtil;
+import org.lccy.elasticsearch.plugin.util.CommonUtil;
 
 import java.io.IOException;
 import java.util.Locale;
@@ -42,7 +42,7 @@ public class FieldScoreComputeWapper {
         String field = (String) fd.get(FIELD);
         Double factor = fd.get(FACTOR) == null ? null : Double.parseDouble(fd.get(FACTOR).toString());
         String modifier = (String) fd.get(MODIFIER);
-        if (StringUtil.isEmpty(field) || StringUtil.isEmpty(modifier) || factor == null) {
+        if (CommonUtil.isEmpty(field) || CommonUtil.isEmpty(modifier) || factor == null) {
             throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [categorys.fields_score] set error, please check.");
         }
         if (Modifier.DECAYGEOEXP.toString().equals(modifier)) {
@@ -50,7 +50,7 @@ public class FieldScoreComputeWapper {
             String scale = (String) fd.get(SCALE);
             String offset = (String) fd.get(OFFSET);
             Double decay = fd.get(DECAY) == null ? null : Double.parseDouble(fd.get(DECAY).toString());
-            if (StringUtil.isEmpty(origin) || StringUtil.isEmpty(scale) || StringUtil.isEmpty(offset) || decay == null) {
+            if (CommonUtil.isEmpty(origin) || CommonUtil.isEmpty(scale) || CommonUtil.isEmpty(offset) || decay == null) {
                 throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [categorys.fields_score.modifier.decaygeoexp] set error, please check.");
             }
         }

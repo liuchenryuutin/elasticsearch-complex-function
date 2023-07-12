@@ -1,10 +1,6 @@
 package org.lccy.elasticsearch.plugin.util;
 
-import org.elasticsearch.common.ParsingException;
-import org.elasticsearch.common.xcontent.XContentParser;
-import org.lccy.elasticsearch.plugin.function.ComplexFieldFunctionBuilder;
-
-import java.util.Map;
+import java.util.Collection;
 
 /**
  * StringUtil
@@ -12,9 +8,9 @@ import java.util.Map;
  * @author liuchen <br>
  * @date 2023-07-08
  */
-public final class StringUtil {
+public final class CommonUtil {
 
-    private StringUtil() {
+    private CommonUtil() {
     }
 
     public static boolean isEmpty(String str) {
@@ -23,6 +19,10 @@ public final class StringUtil {
         } else {
             return "".equals(str.trim());
         }
+    }
+
+    public static boolean isEmpty(Collection<?> list) {
+        return list == null || list.isEmpty();
     }
 
     public static boolean isNotEmpty(String str) {

@@ -32,7 +32,7 @@ import org.elasticsearch.index.query.QueryShardContext;
 import org.elasticsearch.index.query.functionscore.ScoreFunctionBuilder;
 import org.lccy.elasticsearch.plugin.function.bo.CategoryScoreWapper;
 import org.lccy.elasticsearch.plugin.function.bo.SortScoreComputeWapper;
-import org.lccy.elasticsearch.plugin.util.StringUtil;
+import org.lccy.elasticsearch.plugin.util.CommonUtil;
 
 import java.io.IOException;
 import java.util.*;
@@ -58,7 +58,7 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
     public ComplexFieldFunctionBuilder(Double funcScoreFactor, Double originalScoreFactor, Map<String, CategoryScoreWapper> categorys
             , String categoryField, Map<String, Boolean> fieldMap) {
         if (funcScoreFactor == null || funcScoreFactor < 0 || originalScoreFactor == null || originalScoreFactor < 0
-                || categorys == null || categorys.isEmpty() || StringUtil.isEmpty(categoryField)) {
+                || categorys == null || categorys.isEmpty() || CommonUtil.isEmpty(categoryField)) {
             throw new IllegalArgumentException("require param is not set, please check.");
         }
         this.funcScoreFactor = funcScoreFactor;
@@ -71,7 +71,7 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
     public ComplexFieldFunctionBuilder(Double funcScoreFactor, Double originalScoreFactor, Map<String, CategoryScoreWapper> categorys
             , String categoryField) {
         if (funcScoreFactor == null || funcScoreFactor < 0 || originalScoreFactor == null || originalScoreFactor < 0
-                || categorys == null || categorys.isEmpty() || StringUtil.isEmpty(categoryField)) {
+                || categorys == null || categorys.isEmpty() || CommonUtil.isEmpty(categoryField)) {
             throw new IllegalArgumentException("require param is not set, please check.");
         }
         this.funcScoreFactor = funcScoreFactor;
@@ -114,7 +114,7 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
         }
 
         String categoryField = (String) request.get("category_field");
-        if (StringUtil.isEmpty(categoryField)) {
+        if (CommonUtil.isEmpty(categoryField)) {
             categoryField = DEFAULT_CATEGORY;
         }
         categorysList.stream().forEach(x -> {
@@ -237,7 +237,7 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
         }
 
         String categoryField = (String) request.get("category_field");
-        if (StringUtil.isEmpty(categoryField)) {
+        if (CommonUtil.isEmpty(categoryField)) {
             categoryField = DEFAULT_CATEGORY;
         }
         categorysList.stream().forEach(x -> {

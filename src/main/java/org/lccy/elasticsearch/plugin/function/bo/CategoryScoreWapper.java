@@ -3,7 +3,7 @@ package org.lccy.elasticsearch.plugin.function.bo;
 import org.elasticsearch.common.ParsingException;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.lccy.elasticsearch.plugin.function.ComplexFieldFunctionBuilder;
-import org.lccy.elasticsearch.plugin.util.StringUtil;
+import org.lccy.elasticsearch.plugin.util.CommonUtil;
 
 import java.util.*;
 
@@ -35,28 +35,30 @@ public class CategoryScoreWapper {
         String sortMode = (String) categorys.get(SORT_MODE);
         Double sortBaseSocre = categorys.get(SORT_BASE_SCORE) == null ? null : Double.parseDouble(categorys.get(SORT_BASE_SCORE).toString());
         List<Map> sortScore = (List) categorys.get(SORT_SCORE);
-        if (StringUtil.isEmpty(catCode) || StringUtil.isEmpty(fieldMode) || StringUtil.isEmpty(sortMode)
-                || ((fieldsScore == null || fieldsScore.isEmpty()) && (sortScore == null || sortScore.isEmpty()))) {
-            throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [categorys] set error, please check.");
+        if(CommonUtil.isEmpty(catCode) || CommonUtil.isEmpty(fieldsScore) && CommonUtil.isEmpty(sortScore)) {
+            throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [categorys] must has [name] and [fields_score] or [sort_score], please check.");
         }
-        if (sortScore != null && !sortScore.isEmpty() && (StringUtil.isEmpty(sortMode) || sortBaseSocre == null)) {
-            throwsException(parser, NAME + " query param [categorys.sort_config] must has [sort_mode] and [sort_base_score].");
+        if(!CommonUtil.isEmpty(fieldsScore) && CommonUtil.isEmpty(fieldMode)) {
+            throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [categorys.fields_score] must has [filed_mode], please check.");
+        }
+        if(!CommonUtil.isEmpty(sortScore) && (CommonUtil.isEmpty(sortMode) || sortBaseSocre == null)) {
+            throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [categorys.sort_score] must has [sort_mode] and [sort_base_score], please check.");
         }
 
-        if (fieldsScore != null && !fieldsScore.isEmpty()) {
+        if (!CommonUtil.isEmpty(fieldsScore)) {
             fieldScoreWappers = new ArrayList<>();
-        }
-        for (Map fd : fieldsScore) {
-            FieldScoreComputeWapper fscw = new FieldScoreComputeWapper(parser, fd);
-            fieldScoreWappers.add(fscw);
+            for (Map fd : fieldsScore) {
+                FieldScoreComputeWapper fscw = new FieldScoreComputeWapper(parser, fd);
+                fieldScoreWappers.add(fscw);
+            }
         }
 
-        if (sortScore != null && !sortScore.isEmpty()) {
+        if (!CommonUtil.isEmpty(sortScore)) {
             scoreComputeWappers = new ArrayList<>();
-        }
-        for (Map st : sortScore) {
-            SortScoreComputeWapper sscw = new SortScoreComputeWapper(parser, st);
-            scoreComputeWappers.add(sscw);
+            for (Map st : sortScore) {
+                SortScoreComputeWapper sscw = new SortScoreComputeWapper(parser, st);
+                scoreComputeWappers.add(sscw);
+            }
         }
 
         this.categorys = categorys;

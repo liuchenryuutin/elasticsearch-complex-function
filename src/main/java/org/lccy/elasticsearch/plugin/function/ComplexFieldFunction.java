@@ -74,10 +74,13 @@ public class ComplexFieldFunction extends ScoreFunction {
                 fieldDataMap.put(field, null);
             } else {
                 if (val instanceof SortedSetDVOrdinalsIndexFieldData) {
+                    // string type
                     fieldDataMap.put(field, ((SortedSetDVOrdinalsIndexFieldData) val).load(ctx).getOrdinalsValues());
                 } else if (val instanceof IndexNumericFieldData) {
+                    // int、float、double type
                     fieldDataMap.put(field, ((IndexNumericFieldData) val).load(ctx).getDoubleValues());
                 } else if (val instanceof AbstractLatLonPointDVIndexFieldData) {
+                    // geo type
                     fieldDataMap.put(field, ((AbstractLatLonPointDVIndexFieldData) val).load(ctx).getGeoPointValues());
                 } else {
                     throw new ElasticsearchException("Not support mapping type for field [" + field + "], type:" + val.getClass());

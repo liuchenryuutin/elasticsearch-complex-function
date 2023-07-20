@@ -122,11 +122,14 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
                 final Map<String, Object> cat = (Map) x;
                 CategoryScoreWapper csw = new CategoryScoreWapper(null, cat);
 
-                if (Constants.SortMode.MAX.equals(csw.getSortMode())) {
-                    csw.getScoreComputeWappers().sort(Comparator.comparingInt(SortScoreComputeWapper::getWeight).reversed());
-                } else {
-                    csw.getScoreComputeWappers().sort(Comparator.comparingInt(SortScoreComputeWapper::getWeight));
+                if(!CommonUtil.isEmpty(csw.getScoreComputeWappers())) {
+                    if (Constants.SortMode.MAX.equals(csw.getSortMode())) {
+                        csw.getScoreComputeWappers().sort(Comparator.comparingInt(SortScoreComputeWapper::getWeight).reversed());
+                    } else {
+                        csw.getScoreComputeWappers().sort(Comparator.comparingInt(SortScoreComputeWapper::getWeight));
+                    }
                 }
+
                 for (String code : csw.getName().split(",")) {
                     categorys.put(code, csw);
                 }
@@ -188,12 +191,14 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
         for (Map.Entry<String, Boolean> entry : this.fieldMap.entrySet()) {
             MappedFieldType fieldType = context.getMapperService().fullName(entry.getKey());
             if (fieldType == null) {
+                // require field's mapping must exists
                 if (entry.getValue()) {
                     throw new ElasticsearchException("Unable to find a field mapper for field [" + entry.getKey() + "]. No 'missing' value defined.");
                 }
             } else {
                 IndexFieldData fieldData = context.getForField(fieldType);
                 if (fieldData == null) {
+                    // require field's mapping must exists
                     if (entry.getValue()) {
                         throw new ElasticsearchException("Unable to find a field mapper for field [" + entry.getKey() + "]. No 'missing' value defined.");
                     }
@@ -245,11 +250,14 @@ public class ComplexFieldFunctionBuilder extends ScoreFunctionBuilder<ComplexFie
                 final Map<String, Object> cat = (Map) x;
                 CategoryScoreWapper csw = new CategoryScoreWapper(parser, cat);
 
-                if (Constants.SortMode.MAX.equals(csw.getSortMode())) {
-                    csw.getScoreComputeWappers().sort(Comparator.comparingInt(SortScoreComputeWapper::getWeight).reversed());
-                } else {
-                    csw.getScoreComputeWappers().sort(Comparator.comparingInt(SortScoreComputeWapper::getWeight));
+                if(!CommonUtil.isEmpty(csw.getScoreComputeWappers())) {
+                    if (Constants.SortMode.MAX.equals(csw.getSortMode())) {
+                        csw.getScoreComputeWappers().sort(Comparator.comparingInt(SortScoreComputeWapper::getWeight).reversed());
+                    } else {
+                        csw.getScoreComputeWappers().sort(Comparator.comparingInt(SortScoreComputeWapper::getWeight));
+                    }
                 }
+
                 for (String code : csw.getName().split(",")) {
                     categorys.put(code, csw);
                 }

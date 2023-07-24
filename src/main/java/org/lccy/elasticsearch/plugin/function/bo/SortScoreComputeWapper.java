@@ -70,6 +70,9 @@ public class SortScoreComputeWapper {
             }
         }
 
+        if(Constants.SortValueType.NOT.equals(this.getType())) {
+            return true;
+        }
         return false;
     }
 

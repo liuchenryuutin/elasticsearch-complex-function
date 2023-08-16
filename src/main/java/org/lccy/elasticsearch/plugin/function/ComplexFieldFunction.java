@@ -68,7 +68,7 @@ public class ComplexFieldFunction extends ScoreFunction {
 
             @Override
             public double score(int docId, float subQueryScore) throws IOException {
-                long start = System.currentTimeMillis();
+//                long start = System.currentTimeMillis();
 
                 String categoryCode = getStrVal(docId, (SortedSetDocValues) fieldDataMap.get(csw.getCategoryField()));
                 if (CommonUtil.isEmpty(categoryCode)) {
@@ -139,8 +139,8 @@ public class ComplexFieldFunction extends ScoreFunction {
                     }
                 }
 //                System.out.println("sortScoreTotal:" + sortScoreTotal);
-                long end = System.currentTimeMillis();
-                System.out.println("compute score cost:" + (end - start));
+//                long end = System.currentTimeMillis();
+//                System.out.println("compute score cost:" + (end - start));
 
                 return csw.getFuncScoreFactor() * fieldScoreTotal + csw.getOriginalScoreFactor() * subQueryScore + sortScoreTotal;
             }

@@ -38,73 +38,96 @@ public class FieldScoreComputeWapper {
 
     private Map<String, Object> fieldScore;
 
+    private String field;
+    private Double factor;
+    private Modifier modifier;
+    private double weight;
+    private double addNum;
+    private String missing;
+    private boolean require;
+    private String origin;
+    private String scale;
+    private String offset;
+    private Double decay;
+
     public FieldScoreComputeWapper(XContentParser parser, Map<String, Object> fd) {
-        String field = (String) fd.get(FIELD);
+        String field = CommonUtil.toString(fd.get(FIELD));
         Double factor = fd.get(FACTOR) == null ? null : Double.parseDouble(fd.get(FACTOR).toString());
-        String modifier = (String) fd.get(MODIFIER);
-        if (CommonUtil.isEmpty(field) || CommonUtil.isEmpty(modifier) || factor == null) {
+        String modifier = CommonUtil.toString(fd.get(MODIFIER));
+        if (CommonUtil.isEmpty(field) || CommonUtil.isEmpty(modifier) || Modifier.checkExist(modifier) || factor == null) {
             throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [categorys.fields_score] set error, please check.");
         }
         if (Modifier.DECAYGEOEXP.toString().equals(modifier)) {
-            String origin = (String) fd.get(ORIGIN);
-            String scale = (String) fd.get(SCALE);
-            String offset = (String) fd.get(OFFSET);
+            String origin = CommonUtil.toString(fd.get(ORIGIN));
+            String scale = CommonUtil.toString(fd.get(SCALE));
+            String offset = CommonUtil.toString(fd.get(OFFSET));
             Double decay = fd.get(DECAY) == null ? null : Double.parseDouble(fd.get(DECAY).toString());
             if (CommonUtil.isEmpty(origin) || CommonUtil.isEmpty(scale) || CommonUtil.isEmpty(offset) || decay == null) {
                 throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [categorys.fields_score.modifier.decaygeoexp] set error, please check.");
             }
+            this.origin = origin;
+            this.scale = scale;
+            this.offset = offset;
+            this.decay = decay;
         }
         this.fieldScore = fd;
+        this.field = field;
+        this.factor = factor;
+        this.modifier = Modifier.fromString(modifier);
+        this.weight = fd.get(WEIGHT) == null ? 1 : Double.parseDouble(fd.get(WEIGHT).toString());
+        this.addNum = fd.get(ADD_NUM) == null ? 0 : Double.parseDouble(fd.get(ADD_NUM).toString());
+        this.missing = CommonUtil.toString(fd.get(MISSING));
+        this.require = fd.get(REQUIRE) == null ? false : (Boolean) fd.get(REQUIRE);
     }
 
     public String getField() {
-        return (String) fieldScore.get(FIELD);
+        return field;
     }
 
     public double getFactor() {
-        return Double.parseDouble(fieldScore.get(FACTOR).toString());
+        return factor;
     }
 
     public Modifier getModifier() {
-        return Modifier.fromString((String) fieldScore.get(MODIFIER));
+        return modifier;
     }
 
 
     public double getWeight() {
-        return fieldScore.get(WEIGHT) == null ? 1 : Double.parseDouble(fieldScore.get(WEIGHT).toString());
+        return weight;
     }
 
     public double getAddNum() {
-        return fieldScore.get(ADD_NUM) == null ? 0 : Double.parseDouble(fieldScore.get(ADD_NUM).toString());
+        return addNum;
     }
 
     public String getMissing() {
-        return (String) fieldScore.get(MISSING);
+        return missing;
     }
 
 
     public boolean getRequire() {
-        return fieldScore.get(REQUIRE) == null ? false : (Boolean) fieldScore.get(REQUIRE);
+        return require;
     }
 
 
     public String getOrigin() {
-        return (String) fieldScore.get(ORIGIN);
+        return origin;
     }
 
 
     public String getScale() {
-        return (String) fieldScore.get(SCALE);
+        return scale;
     }
 
 
     public String getOffset() {
-        return (String) fieldScore.get(OFFSET);
+        return offset;
     }
 
 
     public Double getDecay() {
-        return Double.parseDouble(fieldScore.get(DECAY).toString());
+        return decay;
     }
 
     private void throwsException(XContentParser parser, String msg) {
@@ -226,6 +249,15 @@ public class FieldScoreComputeWapper {
 
         public static Modifier fromString(String modifier) {
             return valueOf(modifier.toUpperCase(Locale.ROOT));
+        }
+
+        public static boolean checkExist(String modifier) {
+            for (Modifier mo : values()) {
+                if (mo.toString().equals(modifier.toUpperCase(Locale.ROOT))) {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 

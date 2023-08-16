@@ -2,10 +2,9 @@ package org.lccy.elasticsearch.plugin.function;
 
 import org.elasticsearch.index.query.functionscore.ScoreFunctionBuilders;
 import org.lccy.elasticsearch.plugin.function.bo.CategoryScoreWapper;
+import org.lccy.elasticsearch.plugin.util.CommonUtil;
 
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * build tool class <br>
@@ -15,12 +14,11 @@ import java.util.stream.Collectors;
  */
 public class ComplexScoreFunctionBuilders extends ScoreFunctionBuilders {
 
-    public static ComplexFieldFunctionBuilder complexFieldFunction(Double funcScoreFactor, Double originalScoreFactor, List<Map> categorys
-            , String categoryField) {
-        if(categorys == null || categoryField.isEmpty()) {
+    public static ComplexFieldFunctionBuilder complexFieldFunction(Map<String, Object> categorys) {
+        if (CommonUtil.isEmpty(categorys)) {
             throw new IllegalArgumentException("require param is not set, please check.");
         }
-        Map<String, CategoryScoreWapper> categoryScoreWapperMap = categorys.stream().map(x -> new CategoryScoreWapper(null, x)).collect(Collectors.toMap(x -> x.getName(), x -> x, (x1, x2) -> x2));
-        return new ComplexFieldFunctionBuilder(funcScoreFactor, originalScoreFactor, categoryScoreWapperMap, categoryField);
+        CategoryScoreWapper categoryScoreWapper = new CategoryScoreWapper(null, categorys);
+        return new ComplexFieldFunctionBuilder(categoryScoreWapper);
     }
 }

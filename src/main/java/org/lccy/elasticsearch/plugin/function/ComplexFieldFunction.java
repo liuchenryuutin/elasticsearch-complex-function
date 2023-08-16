@@ -1,22 +1,3 @@
-/*
- * Licensed to Elasticsearch under one or more contributor
- * license agreements. See the NOTICE file distributed with
- * this work for additional information regarding copyright
- * ownership. Elasticsearch licenses this file to you under
- * the Apache License, Version 2.0 (the "License"); you may
- * not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
-
 package org.lccy.elasticsearch.plugin.function;
 
 import org.apache.lucene.index.LeafReaderContext;
@@ -48,18 +29,12 @@ import java.util.*;
  * @date 2023-07-08
  */
 public class ComplexFieldFunction extends ScoreFunction {
-    private final double funcScoreFactor;
-    private final double originalScoreFactor;
-    private final String categoryField;
-    private final Map<String, CategoryScoreWapper> categorys;
+
+    private final CategoryScoreWapper categorys;
     private final Map<String, IndexFieldData> fieldMap;
 
-    public ComplexFieldFunction(double funcScoreFactor, double originalScoreFactor, Map<String, CategoryScoreWapper> categorys,
-                                Map<String, IndexFieldData> fieldMap, String categoryField) {
+    public ComplexFieldFunction(CategoryScoreWapper categorys, Map<String, IndexFieldData> fieldMap) {
         super(CombineFunction.MULTIPLY);
-        this.funcScoreFactor = funcScoreFactor;
-        this.originalScoreFactor = originalScoreFactor;
-        this.categoryField = categoryField;
         this.categorys = categorys;
         this.fieldMap = fieldMap;
     }
@@ -87,24 +62,26 @@ public class ComplexFieldFunction extends ScoreFunction {
                 }
             }
         }
+        final CategoryScoreWapper csw = this.categorys;
 
         return new LeafScoreFunction() {
 
             @Override
             public double score(int docId, float subQueryScore) throws IOException {
-//                long start = System.currentTimeMillis();
+                long start = System.currentTimeMillis();
 
-                String categoryCode = getStrVal(docId, (SortedSetDocValues) fieldDataMap.get(categoryField));
-                CategoryScoreWapper cbo;
-                if (CommonUtil.isEmpty(categoryCode) || (cbo = categorys.get(categoryCode)) == null) {
+                String categoryCode = getStrVal(docId, (SortedSetDocValues) fieldDataMap.get(csw.getCategoryField()));
+                if (CommonUtil.isEmpty(categoryCode)) {
                     return 0;
                 }
 //                System.out.println("categoryCode:" + categoryCode + ", sub socre:" +  subQueryScore);
+                List<FieldScoreComputeWapper> fieldScores = csw.getFieldScoreWappers(categoryCode);
+                List<SortScoreComputeWapper> sortScores = csw.getScoreComputeWappers(categoryCode);
 
                 double fieldScoreTotal = 0;
-                if (cbo.getFieldScoreWappers() != null && !cbo.getFieldScoreWappers().isEmpty()) {
-                    String fieldMode = cbo.getFieldMode();
-                    for (FieldScoreComputeWapper fbo : cbo.getFieldScoreWappers()) {
+                if (!CommonUtil.isEmpty(fieldScores)) {
+                    String fieldMode = csw.getFieldMode();
+                    for (FieldScoreComputeWapper fbo : fieldScores) {
 //                        System.out.println("field:" + fbo.getField() + ", fieldMode:" +  fieldMode + ", values class:" + fieldDataMap.get(fbo.getField()));
 
                         // get field value.
@@ -141,10 +118,14 @@ public class ComplexFieldFunction extends ScoreFunction {
 //                System.out.println("fieldScoreTotal:" + fieldScoreTotal);
 
                 double sortScoreTotal = 0;
-                if (cbo.getScoreComputeWappers() != null && !cbo.getScoreComputeWappers().isEmpty()) {
-                    String sortMode = cbo.getSortMode();
-                    double sortBaseScore = cbo.getSortBaseScore();
-                    for (SortScoreComputeWapper sbo : cbo.getScoreComputeWappers()) {
+                if (!CommonUtil.isEmpty(sortScores)) {
+                    double sortBaseScore = csw.getSortBaseScore();
+                    for (SortScoreComputeWapper sbo : sortScores) {
+                        if(Constants.SortValueType.ANY.equals(sbo.getType())) {
+//                            System.out.println("sortType any.");
+                            sortScoreTotal = mergeSortScore(Constants.SortMode.MAX, sortScoreTotal, sbo.getWeight() * sortBaseScore);
+                            break;
+                        }
 //                        System.out.println("sortField:" + sbo.getField() + ", sortBaseScore:" +  sortBaseScore + ", values class:" + fieldDataMap.get(sbo.getField()));
                         String[] fVal = getStrValArray(docId, (SortedSetDocValues) fieldDataMap.get(sbo.getField()));
 //                        System.out.println("field:" + sbo.getField() + ", value:" +  Arrays.toString(fVal));
@@ -152,35 +133,34 @@ public class ComplexFieldFunction extends ScoreFunction {
                             continue;
                         }
                         if (sbo.match(fVal)) {
-                            sortScoreTotal = mergeSortScore(sortMode, sortScoreTotal, sbo.getWeight() * sortBaseScore);
+                            sortScoreTotal = mergeSortScore(Constants.SortMode.MAX, sortScoreTotal, sbo.getWeight() * sortBaseScore);
                             break;
                         }
                     }
                 }
 //                System.out.println("sortScoreTotal:" + sortScoreTotal);
-//                long end = System.currentTimeMillis();
-//                System.out.println("compute score cost:" + (end - start));
+                long end = System.currentTimeMillis();
+                System.out.println("compute score cost:" + (end - start));
 
-                // 因为要支持function_score替换相关度评分，直接boost_mode=replace，会导致相关度不计算。@link org.elasticsearch.common.lucene.search.function.FunctionScoreQuery.createWeight
-                // 只有将boost_mode=sum，才会计算相关度。要减去subQueryScore是为了去除相关度的评分
-                // 因为已经在公式中使用subQueryScore进行了占比计算，所以这里要去除
-                return funcScoreFactor * fieldScoreTotal + originalScoreFactor * subQueryScore + sortScoreTotal - subQueryScore;
+                return csw.getFuncScoreFactor() * fieldScoreTotal + csw.getOriginalScoreFactor() * subQueryScore + sortScoreTotal;
             }
 
             @Override
             public Explanation explainScore(int docId, Explanation subQueryScore) throws IOException {
-                String categoryCode = getStrVal(docId, (SortedSetDocValues) fieldDataMap.get(categoryField));
-                CategoryScoreWapper cbo;
-                if (CommonUtil.isEmpty(categoryCode) || (cbo = categorys.get(categoryCode)) == null) {
-                    return Explanation.match(0, "category not mapping.");
+
+                String categoryCode = getStrVal(docId, (SortedSetDocValues) fieldDataMap.get(csw.getCategoryField()));
+                if (CommonUtil.isEmpty(categoryCode)) {
+                    return Explanation.match(0, "category is empty.");
                 }
+                List<FieldScoreComputeWapper> fieldScores = csw.getFieldScoreWappers(categoryCode);
+                List<SortScoreComputeWapper> sortScores = csw.getScoreComputeWappers(categoryCode);
 
                 double fieldScoreTotal = 0;
                 Explanation fieldsExplain = null;
-                if (cbo.getFieldScoreWappers() != null && !cbo.getFieldScoreWappers().isEmpty()) {
-                    String fieldMode = cbo.getFieldMode();
+                if (!CommonUtil.isEmpty(fieldScores)) {
+                    String fieldMode = csw.getFieldMode();
                     List<Explanation> fieldExplanList = new ArrayList<>();
-                    for (FieldScoreComputeWapper fbo : cbo.getFieldScoreWappers()) {
+                    for (FieldScoreComputeWapper fbo : fieldScores) {
 
                         // get field value.
                         Object fVal;
@@ -227,32 +207,36 @@ public class ComplexFieldFunction extends ScoreFunction {
 
                 double sortScoreTotal = 0;
                 Explanation sortExplain = null;
-                if (cbo.getScoreComputeWappers() != null && !cbo.getScoreComputeWappers().isEmpty()) {
-                    String sortMode = cbo.getSortMode();
-                    double sortBaseScore = cbo.getSortBaseScore();
+                if (!CommonUtil.isEmpty(sortScores)) {
+                    double sortBaseScore = csw.getSortBaseScore();
                     List<Explanation> sortExplanList = new ArrayList<>();
-                    for (SortScoreComputeWapper sbo : cbo.getScoreComputeWappers()) {
+                    for (SortScoreComputeWapper sbo : sortScores) {
+                        if(Constants.SortValueType.ANY.equals(sbo.getType())) {
+                            double sortScore = sbo.getWeight() * sortBaseScore;
+                            sortScoreTotal = mergeSortScore(Constants.SortMode.MAX, sortScoreTotal, sortScore);
+                            Explanation sortEx = Explanation.match(sortScore, "Compute sort type:[any], expression:[it's always true].");
+                            sortExplanList.add(sortEx);
+                            break;
+                        }
+
                         String[] fVal = getStrValArray(docId, (SortedSetDocValues) fieldDataMap.get(sbo.getField()));
                         if (fVal == null) {
                             continue;
                         }
                         if (sbo.match(fVal)) {
                             double sortScore = sbo.getWeight() * sortBaseScore;
-                            sortScoreTotal = mergeSortScore(sortMode, sortScoreTotal, sortScore);
+                            sortScoreTotal = mergeSortScore(Constants.SortMode.MAX, sortScoreTotal, sortScore);
                             Explanation sortEx = Explanation.match(sortScore, String.format(Locale.ROOT, "Compute sort field:[%s], value:[%s], expression:[%s].",
                                     sbo.getField(), Arrays.toString(fVal), sbo.getExpression(sortBaseScore)));
                             sortExplanList.add(sortEx);
                             break;
                         }
                     }
-                    sortExplain = Explanation.match(sortScoreTotal, String.format(Locale.ROOT, "Compute sortScoreTotal, sort_mode:[%s], sort_base_score:[%f] ", sortMode, sortBaseScore), sortExplanList);
+                    sortExplain = Explanation.match(sortScoreTotal, String.format(Locale.ROOT, "Compute sortScoreTotal, sort_mode:[max], sort_base_score:[%f] ", sortBaseScore), sortExplanList);
                 }
 
-                // 因为要支持function_score替换相关度评分，直接boost_mode=replace，会导致相关度不计算。@link org.elasticsearch.common.lucene.search.function.FunctionScoreQuery.createWeight
-                // 只有将boost_mode=sum，才会计算相关度。要减去subQueryScore是为了去除相关度的评分
-                // 因为已经在公式中使用subQueryScore进行了占比计算，所以这里要去除
                 float subScore = subQueryScore.getValue().floatValue();
-                double score = funcScoreFactor * fieldScoreTotal + originalScoreFactor * subScore + sortScoreTotal - subScore;
+                double score = csw.getFuncScoreFactor() * fieldScoreTotal + csw.getOriginalScoreFactor() * subScore + sortScoreTotal;
                 List<Explanation> resList = new ArrayList<>();
                 if (fieldsExplain != null) {
                     resList.add(fieldsExplain);
@@ -263,8 +247,8 @@ public class ComplexFieldFunction extends ScoreFunction {
                 Explanation result = Explanation.match(
                         (float) score,
                         String.format(Locale.ROOT,
-                                "Compute complex_field_score, subScore:[%f] expression: [%f * fieldScoreTotal + %f * subScore + sortScoreTotal - subScore]",
-                                subScore, funcScoreFactor, originalScoreFactor), resList);
+                                "Compute complex_field_score, subScore:[%f] expression: [%f * fieldScoreTotal + %f * subScore + sortScoreTotal]",
+                                subScore, csw.getFuncScoreFactor(), csw.getOriginalScoreFactor()), resList);
                 return result;
             }
         };
@@ -363,21 +347,22 @@ public class ComplexFieldFunction extends ScoreFunction {
 
     @Override
     public boolean needsScores() {
-        return false;
+        return true;
     }
 
     @Override
     protected boolean doEquals(ScoreFunction other) {
-        ComplexFieldFunction complexFieldFunction = (ComplexFieldFunction) other;
-        return this.funcScoreFactor == complexFieldFunction.funcScoreFactor &&
-                this.originalScoreFactor == complexFieldFunction.originalScoreFactor &&
-                Objects.equals(this.categorys, complexFieldFunction.categorys) &&
-                Objects.equals(categoryField, complexFieldFunction.categoryField);
+        if(other instanceof ComplexFieldFunction) {
+            ComplexFieldFunction complexFieldFunction = (ComplexFieldFunction) other;
+            return Objects.equals(this.categorys, complexFieldFunction.categorys);
+        } else {
+            return false;
+        }
     }
 
     @Override
     protected int doHashCode() {
-        return Objects.hash(funcScoreFactor, originalScoreFactor, categorys, categoryField);
+        return Objects.hash(categorys);
     }
 
 }

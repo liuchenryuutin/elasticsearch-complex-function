@@ -24,30 +24,43 @@ public class SortScoreComputeWapper {
     public static final String VALUE = "value";
 
     private Map<String, Object> sortScore;
+    private String field;
+    private String type;
+    private String value;
+    private Integer weight;
 
     public SortScoreComputeWapper(XContentParser parser, Map<String, Object> st) {
         Integer weight = st.get(WEIGHT) == null ? null : Integer.parseInt(st.get(WEIGHT).toString());
-        String field = (String) st.get(FIELD);
-        if (CommonUtil.isEmpty(field) || weight == null) {
-            throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [categorys] [sort_score] setting has error, please check.");
+        String field = CommonUtil.toString(st.get(FIELD));
+        String type = CommonUtil.toString(st.get(TYPE));
+        String value = CommonUtil.toString(st.get(VALUE));
+        if (weight == null) {
+            throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [categorys] [sort_score] must has [weight], please check.");
+        }
+        if (!Constants.SortValueType.ANY.equals(type) && (CommonUtil.isEmpty(field) || CommonUtil.isEmpty(value))) {
+            throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [categorys] [sort_score], When the [type] is not [any], [field] [value] must be set.");
         }
         this.sortScore = st;
+        this.field = field;
+        this.type = type;
+        this.value = value;
+        this.weight = weight;
     }
 
     public Integer getWeight() {
-        return Integer.parseInt(sortScore.get(WEIGHT).toString());
+        return weight;
     }
 
     public String getField() {
-        return (String) sortScore.get(FIELD);
+        return field;
     }
 
     public String getType() {
-        return (String) sortScore.get(TYPE);
+        return type;
     }
 
     public String getValue() {
-        return (String) sortScore.get(VALUE);
+        return value;
     }
 
     private void throwsException(XContentParser parser, String msg) {
@@ -70,7 +83,7 @@ public class SortScoreComputeWapper {
             }
         }
 
-        if(Constants.SortValueType.NOT.equals(this.getType())) {
+        if (Constants.SortValueType.NOT.equals(this.getType())) {
             return true;
         }
         return false;

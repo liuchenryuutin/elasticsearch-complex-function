@@ -15,94 +15,145 @@ import java.util.*;
  */
 public class CategoryScoreWapper {
 
-    public static final String NAME = "name";
+    public static final String CATEGORY_FIELD = "category_field";
+    public static final String FUNC_SCORE_FACTOR = "func_score_factor";
+    public static final String ORIGINAL_SCORE_FACTOR = "original_score_factor";
     public static final String FILED_MODE = "filed_mode";
     public static final String FIELDS_SCORE = "fields_score";
-    public static final String SORT_MODE = "sort_mode";
     public static final String SORT_BASE_SCORE = "sort_base_score";
     public static final String SORT_SCORE = "sort_score";
-
     // wrap data
     private Map<String, Object> categorys;
 
-    private List<FieldScoreComputeWapper> fieldScoreWappers;
-    private List<SortScoreComputeWapper> scoreComputeWappers;
+    private Double funcScoreFactor;
+    private Double originalScoreFactor;
+    private String categoryField;
+    private String fieldMode;
+    private Double sortBaseScore;
+
+    private Map<String, List<FieldScoreComputeWapper>> fieldScoreWapperMap;
+    private Map<String, List<SortScoreComputeWapper>> scoreComputeWapperMap;
+    private Map<String, Boolean> allFiled;
 
     public CategoryScoreWapper(XContentParser parser, Map<String, Object> categorys) {
-        String catCode = (String) categorys.get(NAME);
-        String fieldMode = (String) categorys.get(FILED_MODE);
-        List<Map> fieldsScore = (List) categorys.get(FIELDS_SCORE);
-        String sortMode = (String) categorys.get(SORT_MODE);
-        Double sortBaseSocre = categorys.get(SORT_BASE_SCORE) == null ? null : Double.parseDouble(categorys.get(SORT_BASE_SCORE).toString());
-        List<Map> sortScore = (List) categorys.get(SORT_SCORE);
-        if(CommonUtil.isEmpty(catCode) || CommonUtil.isEmpty(fieldsScore) && CommonUtil.isEmpty(sortScore)) {
-            throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [categorys] must has [name] and [fields_score] or [sort_score], please check.");
+        if (categorys.get(FUNC_SCORE_FACTOR) == null) {
+            throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query must has field [func_score_factor]");
+        } else {
+            funcScoreFactor = Double.parseDouble(categorys.get("func_score_factor").toString());
         }
-        if(!CommonUtil.isEmpty(fieldsScore) && CommonUtil.isEmpty(fieldMode)) {
-            throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [categorys.fields_score] must has [filed_mode], please check.");
+        if (categorys.get(ORIGINAL_SCORE_FACTOR) == null) {
+            throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query must has field [original_score_factor]");
+        } else {
+            originalScoreFactor = Double.parseDouble(categorys.get("original_score_factor").toString());
         }
-        if(!CommonUtil.isEmpty(sortScore) && (CommonUtil.isEmpty(sortMode) || sortBaseSocre == null)) {
-            throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [categorys.sort_score] must has [sort_mode] and [sort_base_score], please check.");
+        if (funcScoreFactor < 0 || originalScoreFactor < 0) {
+            throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [original_score_factor] or [func_score_factor] must be greater than 0.");
+        }
+        if(categorys.get(CATEGORY_FIELD) == null) {
+            throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query must has field [category_field]");
+        } else {
+            categoryField = CommonUtil.toString(categorys.get("category_field"));
         }
 
+        String fieldMode = CommonUtil.toString(categorys.get(FILED_MODE));
+        Map<String, Object> fieldsScore = (Map<String, Object>) categorys.get(FIELDS_SCORE);
+        Double sortBaseScore = categorys.get(SORT_BASE_SCORE) == null ? null : Double.parseDouble(categorys.get(SORT_BASE_SCORE).toString());
+        Map<String, Object> sortScore = (Map<String, Object>) categorys.get(SORT_SCORE);
+        if(CommonUtil.isEmpty(fieldsScore) && CommonUtil.isEmpty(sortScore)) {
+            throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query must has [name] and [fields_score] or [sort_score], please check.");
+        }
+        if(!CommonUtil.isEmpty(fieldsScore) && CommonUtil.isEmpty(fieldMode)) {
+            throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [fields_score] must has sibling element [filed_mode], please check.");
+        }
+        if(!CommonUtil.isEmpty(sortScore) && sortBaseScore == null) {
+            throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [sort_score] must has sibling element [sort_base_score], please check.");
+        }
+        this.fieldMode = fieldMode;
+        this.sortBaseScore = sortBaseScore;
+
+        this.allFiled = new HashMap<>();
+        this.allFiled.put(categoryField, true);
         if (!CommonUtil.isEmpty(fieldsScore)) {
-            fieldScoreWappers = new ArrayList<>();
-            for (Map fd : fieldsScore) {
-                FieldScoreComputeWapper fscw = new FieldScoreComputeWapper(parser, fd);
-                fieldScoreWappers.add(fscw);
+            this.fieldScoreWapperMap = new HashMap<>();
+            for (String cateCodes : fieldsScore.keySet()) {
+                List<Map> value = (List<Map>) fieldsScore.get(cateCodes);
+                if(CommonUtil.isEmpty(value)) {
+                    throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [fields_score] must has attributes, please check.");
+                }
+                List<FieldScoreComputeWapper> fieldScoreComputeWappers = new ArrayList<>();
+                value.stream().forEach(x -> {
+                    FieldScoreComputeWapper fscw = new FieldScoreComputeWapper(parser, x);
+                    fieldScoreComputeWappers.add(fscw);
+                    this.allFiled.put(fscw.getField(), fscw.getRequire() && fscw.getMissing() == null);
+                });
+
+                for (String cateCode : cateCodes.split(",", -1)) {
+                    this.fieldScoreWapperMap.put(cateCode, fieldScoreComputeWappers);
+                }
             }
         }
 
         if (!CommonUtil.isEmpty(sortScore)) {
-            scoreComputeWappers = new ArrayList<>();
-            for (Map st : sortScore) {
-                SortScoreComputeWapper sscw = new SortScoreComputeWapper(parser, st);
-                scoreComputeWappers.add(sscw);
+            this.scoreComputeWapperMap = new HashMap<>();
+            for (String cateCodes : sortScore.keySet()) {
+                List<Map> value = (List<Map>) sortScore.get(cateCodes);
+                if(CommonUtil.isEmpty(value)) {
+                    throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [sort_score] must has attributes, please check.");
+                }
+                List<SortScoreComputeWapper> scoreComputeWappers = new ArrayList<>();
+                value.stream().forEach(x -> {
+                    SortScoreComputeWapper sscw = new SortScoreComputeWapper(parser, x);
+                    scoreComputeWappers.add(sscw);
+                    this.allFiled.put(sscw.getField(), false);
+                });
+
+                if(!CommonUtil.isEmpty(scoreComputeWappers)) {
+                    scoreComputeWappers.sort(Comparator.comparingInt(SortScoreComputeWapper::getWeight).reversed());
+                }
+
+                for (String cateCode : cateCodes.split(",", -1)) {
+                    this.scoreComputeWapperMap.put(cateCode, scoreComputeWappers);
+                }
             }
         }
 
         this.categorys = categorys;
     }
 
+    public Double getFuncScoreFactor() {
+        return funcScoreFactor;
+    }
 
-    public String getName() {
-        return (String) categorys.get(NAME);
+    public Double getOriginalScoreFactor() {
+        return originalScoreFactor;
+    }
+
+    public String getCategoryField() {
+        return categoryField;
     }
 
     public String getFieldMode() {
-        return (String) categorys.get(FILED_MODE);
-    }
-
-    public String getSortMode() {
-        return (String) categorys.get(SORT_MODE);
+        return fieldMode;
     }
 
     public Double getSortBaseScore() {
-        return Double.parseDouble(categorys.get(SORT_BASE_SCORE).toString());
+        return sortBaseScore;
     }
 
     public Map<String, Object> unwrap() {
         return categorys;
     }
 
-    public List<FieldScoreComputeWapper> getFieldScoreWappers() {
-        return fieldScoreWappers;
+    public List<FieldScoreComputeWapper> getFieldScoreWappers(String cateCode) {
+        return fieldScoreWapperMap == null ? null : fieldScoreWapperMap.get(cateCode);
     }
 
-    public List<SortScoreComputeWapper> getScoreComputeWappers() {
-        return scoreComputeWappers;
+    public List<SortScoreComputeWapper> getScoreComputeWappers(String cateCode) {
+        return scoreComputeWapperMap == null ? null : scoreComputeWapperMap.get(cateCode);
     }
 
     public Map<String, Boolean> getAllFiled() {
-        Map<String, Boolean> result = new HashMap<>();
-        if (fieldScoreWappers != null && !fieldScoreWappers.isEmpty()) {
-            fieldScoreWappers.forEach(x -> result.put(x.getField(), x.getRequire() && x.getMissing() == null));
-        }
-
-        if (scoreComputeWappers != null && !scoreComputeWappers.isEmpty()) {
-            scoreComputeWappers.forEach(x -> result.put(x.getField(), false));
-        }
-        return result;
+        return allFiled;
     }
 
     private void throwsException(XContentParser parser, String msg) {

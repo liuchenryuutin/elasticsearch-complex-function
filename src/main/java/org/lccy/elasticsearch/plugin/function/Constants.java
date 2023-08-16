@@ -23,6 +23,7 @@ public interface Constants {
 
 
     interface SortValueType {
-        String NOT = "not";
+        String NOT = "not"; //不相等时为true
+        String ANY = "any"; //任何时候都为true
     }
 }

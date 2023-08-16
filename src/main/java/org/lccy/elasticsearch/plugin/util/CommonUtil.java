@@ -1,6 +1,7 @@
 package org.lccy.elasticsearch.plugin.util;
 
 import java.util.Collection;
+import java.util.Map;
 
 /**
  * StringUtil
@@ -22,6 +23,10 @@ public final class CommonUtil {
     }
 
     public static boolean isEmpty(Collection<?> list) {
+        return list == null || list.isEmpty();
+    }
+
+    public static boolean isEmpty(Map<?, ?> list) {
         return list == null || list.isEmpty();
     }
 

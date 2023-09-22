@@ -18,7 +18,7 @@ public class CategoryScoreWapper {
     public static final String CATEGORY_FIELD = "category_field";
     public static final String FUNC_SCORE_FACTOR = "func_score_factor";
     public static final String ORIGINAL_SCORE_FACTOR = "original_score_factor";
-    public static final String FILED_MODE = "filed_mode";
+    public static final String FIELD_MODE = "field_mode";
     public static final String FIELDS_SCORE = "fields_score";
     public static final String SORT_BASE_SCORE = "sort_base_score";
     public static final String SORT_SCORE = "sort_score";
@@ -39,12 +39,12 @@ public class CategoryScoreWapper {
         if (categorys.get(FUNC_SCORE_FACTOR) == null) {
             throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query must has field [func_score_factor]");
         } else {
-            funcScoreFactor = Double.parseDouble(categorys.get("func_score_factor").toString());
+            funcScoreFactor = Double.parseDouble(categorys.get(FUNC_SCORE_FACTOR).toString());
         }
         if (categorys.get(ORIGINAL_SCORE_FACTOR) == null) {
             throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query must has field [original_score_factor]");
         } else {
-            originalScoreFactor = Double.parseDouble(categorys.get("original_score_factor").toString());
+            originalScoreFactor = Double.parseDouble(categorys.get(ORIGINAL_SCORE_FACTOR).toString());
         }
         if (funcScoreFactor < 0 || originalScoreFactor < 0) {
             throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [original_score_factor] or [func_score_factor] must be greater than 0.");
@@ -52,10 +52,10 @@ public class CategoryScoreWapper {
         if(categorys.get(CATEGORY_FIELD) == null) {
             throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query must has field [category_field]");
         } else {
-            categoryField = CommonUtil.toString(categorys.get("category_field"));
+            categoryField = CommonUtil.toString(categorys.get(CATEGORY_FIELD));
         }
 
-        String fieldMode = CommonUtil.toString(categorys.get(FILED_MODE));
+        String fieldMode = CommonUtil.toString(categorys.get(FIELD_MODE));
         Map<String, Object> fieldsScore = (Map<String, Object>) categorys.get(FIELDS_SCORE);
         Double sortBaseScore = categorys.get(SORT_BASE_SCORE) == null ? null : Double.parseDouble(categorys.get(SORT_BASE_SCORE).toString());
         Map<String, Object> sortScore = (Map<String, Object>) categorys.get(SORT_SCORE);
@@ -63,7 +63,7 @@ public class CategoryScoreWapper {
             throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query must has [name] and [fields_score] or [sort_score], please check.");
         }
         if(!CommonUtil.isEmpty(fieldsScore) && CommonUtil.isEmpty(fieldMode)) {
-            throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [fields_score] must has sibling element [filed_mode], please check.");
+            throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [fields_score] must has sibling element [field_mode], please check.");
         }
         if(!CommonUtil.isEmpty(sortScore) && sortBaseScore == null) {
             throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [sort_score] must has sibling element [sort_base_score], please check.");

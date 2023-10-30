@@ -37,9 +37,13 @@ public class SortScoreComputeWapper {
         if (weight == null) {
             throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [categorys] [sort_score] must has [weight], please check.");
         }
-        if (!Constants.SortValueType.ANY.equals(type) && (CommonUtil.isEmpty(field) || CommonUtil.isEmpty(value))) {
-            throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [categorys] [sort_score], When the [type] is not [any], [field] [value] must be set.");
+        if(CommonUtil.isEmpty(field) && !Constants.SortValueType.ANY.equals(type)) {
+            throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [categorys] [sort_score], When the [type] is not [any], [field] must be set.");
         }
+        if(CommonUtil.isEmpty(value) && !(Constants.SortValueType.ANY.equals(type) || Constants.SortValueType.EXISTS.equals(type) || Constants.SortValueType.NOT_EXISTS.equals(type))) {
+            throwsException(parser, ComplexFieldFunctionBuilder.NAME + " query param [categorys] [sort_score], When the [type] is not [any, exists, not_exists], [value] must be set.");
+        }
+
         this.sortScore = st;
         this.field = field;
         this.type = type;
@@ -77,16 +81,57 @@ public class SortScoreComputeWapper {
     }
 
     public boolean match(String[] values) {
-        for (String val : values) {
-            if (this.getValue().equals(val)) {
-                return !Constants.SortValueType.NOT.equals(this.getType());
-            }
-        }
+        return matchNew(this.getType(), this.getValue(), values);
+    }
 
-        if (Constants.SortValueType.NOT.equals(this.getType())) {
-            return true;
+    public static boolean matchNew(String type, String expectVal, String[] values) {
+        switch (type) {
+            case Constants.SortValueType.EXISTS:
+                return values != null;
+            case Constants.SortValueType.NOT_EXISTS:
+                return values == null;
+            case Constants.SortValueType.IN:
+                if(values == null || values.length == 0) {
+                    return false;
+                }
+                for (String val : values) {
+                    if (expectVal.indexOf(val) >= 0) {
+                        return true;
+                    }
+                }
+                return false;
+            case Constants.SortValueType.NOT_IN:
+                if(values == null || values.length == 0) {
+                    return true;
+                }
+                for (String val : values) {
+                    if (expectVal.indexOf(val) >= 0) {
+                        return false;
+                    }
+                }
+                return true;
+            case Constants.SortValueType.NOT:
+                if(values == null || values.length == 0) {
+                    return true;
+                }
+                for (String val : values) {
+                    if (expectVal.equals(val)) {
+                        return false;
+                    }
+                }
+                return true;
+            case Constants.SortValueType.EQUAL:
+            default:
+                if(values == null || values.length == 0) {
+                    return false;
+                }
+                for (String val : values) {
+                    if (expectVal.equals(val)) {
+                        return true;
+                    }
+                }
+                return false;
         }
-        return false;
     }
 
     @Override

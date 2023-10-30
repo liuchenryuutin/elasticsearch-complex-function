@@ -127,12 +127,30 @@ public class ComplexFieldFunction extends ScoreFunction {
                             break;
                         }
 //                        System.out.println("sortField:" + sbo.getField() + ", sortBaseScore:" +  sortBaseScore + ", values class:" + fieldDataMap.get(sbo.getField()));
-                        String[] fVal = getStrValArray(docId, (SortedSetDocValues) fieldDataMap.get(sbo.getField()));
-//                        System.out.println("field:" + sbo.getField() + ", value:" +  Arrays.toString(fVal));
-                        if (fVal == null) {
-                            continue;
+                        String field = sbo.getField();
+                        boolean match = false;
+                        if(field.indexOf(Constants.SPLIT) > 0) {
+                            // 多个字段时，按照Constants.SPLIT后处理
+                            String[] fields = field.split(Constants.SPLIT);
+                            String[] types = sbo.getType().split(Constants.SPLIT);
+                            String[] values = sbo.getValue().split(Constants.SPLIT);
+                            for(int i = 0; i < fields.length; i++) {
+                                String f = fields[i];
+                                String type = types[i];
+                                String value = values[i];
+                                String[] val = getStrValArray(docId, (SortedSetDocValues) fieldDataMap.get(f));
+                                match = SortScoreComputeWapper.matchNew(type, value, val);
+//                                System.out.println("split分类名:" + categoryCode + "字段名:" + f + ",期待值:" + value + ",实际值:" + Arrays.toString(val) + ",是否匹配:" + match);
+                                if(!match) {
+                                    break;
+                                }
+                            }
+                        } else {
+                            String[] fVal = getStrValArray(docId, (SortedSetDocValues) fieldDataMap.get(field));
+                            match = sbo.match(fVal);
+//                            System.out.println("分类名:" + categoryCode + "字段名:" + field + ",期待值:" + sbo.getValue() + ",实际值:" + Arrays.toString(fVal) + ",是否匹配:" + match);
                         }
-                        if (sbo.match(fVal)) {
+                        if (match) {
                             sortScoreTotal = mergeSortScore(Constants.SortMode.MAX, sortScoreTotal, sbo.getWeight() * sortBaseScore);
                             break;
                         }
@@ -220,15 +238,41 @@ public class ComplexFieldFunction extends ScoreFunction {
                             break;
                         }
 
-                        String[] fVal = getStrValArray(docId, (SortedSetDocValues) fieldDataMap.get(sbo.getField()));
-                        if (fVal == null) {
-                            continue;
+                        String field = sbo.getField();
+                        boolean match = false;
+                        StringBuilder fVals = new StringBuilder();
+                        if(field.indexOf(Constants.SPLIT) > 0) {
+                            // 多个字段时，按照Constants.SPLIT后处理
+                            String[] fields = field.split(Constants.SPLIT);
+                            String[] types = sbo.getType().split(Constants.SPLIT);
+                            String[] values = sbo.getValue().split(Constants.SPLIT);
+                            for(int i = 0; i < fields.length; i++) {
+                                String f = fields[i];
+                                String type = types[i];
+                                String value = values[i];
+                                String[] val = getStrValArray(docId, (SortedSetDocValues) fieldDataMap.get(f));
+                                if(fVals.length() != 0) {
+                                    fVals.append(Constants.SPLIT);
+                                }
+                                fVals.append(Arrays.toString(val));
+                                match = SortScoreComputeWapper.matchNew(type, value, val);
+//                                System.out.println("split分类名:" + categoryCode + "字段名:" + f + ",期待值:" + value + ",实际值:" + Arrays.toString(val) + ",是否匹配:" + match);
+                                if(!match) {
+                                    break;
+                                }
+                            }
+                        } else {
+                            String[] fVal = getStrValArray(docId, (SortedSetDocValues) fieldDataMap.get(field));
+                            fVals.append(Arrays.toString(fVal));
+                            match = sbo.match(fVal);
+//                            System.out.println("分类名:" + categoryCode + "字段名:" + field + ",期待值:" + sbo.getValue() + ",实际值:" + Arrays.toString(fVal) + ",是否匹配:" + match);
                         }
-                        if (sbo.match(fVal)) {
+
+                        if (match) {
                             double sortScore = sbo.getWeight() * sortBaseScore;
-                            sortScoreTotal = mergeSortScore(Constants.SortMode.MAX, sortScoreTotal, sortScore);
+                            sortScoreTotal = mergeSortScore(Constants.SortMode.MAX, sortScoreTotal, sbo.getWeight() * sortBaseScore);
                             Explanation sortEx = Explanation.match(sortScore, String.format(Locale.ROOT, "Compute sort field:[%s], value:[%s], expression:[%s].",
-                                    sbo.getField(), Arrays.toString(fVal), sbo.getExpression(sortBaseScore)));
+                                    sbo.getField(), fVals, sbo.getExpression(sortBaseScore)));
                             sortExplanList.add(sortEx);
                             break;
                         }

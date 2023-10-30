@@ -3,6 +3,7 @@ package org.lccy.elasticsearch.plugin.function.bo;
 import org.elasticsearch.common.ParsingException;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.lccy.elasticsearch.plugin.function.ComplexFieldFunctionBuilder;
+import org.lccy.elasticsearch.plugin.function.Constants;
 import org.lccy.elasticsearch.plugin.util.CommonUtil;
 
 import java.util.*;
@@ -84,7 +85,18 @@ public class CategoryScoreWapper {
                 value.stream().forEach(x -> {
                     FieldScoreComputeWapper fscw = new FieldScoreComputeWapper(parser, x);
                     fieldScoreComputeWappers.add(fscw);
-                    this.allFiled.put(fscw.getField(), fscw.getRequire() && fscw.getMissing() == null);
+                    String field = fscw.getField();
+                    boolean require = fscw.getRequire() && fscw.getMissing() == null;
+                    // 多个字段
+                    if(field.indexOf(Constants.SPLIT) > 0) {
+                        String[] fields = field.split(Constants.SPLIT);
+                        for (String f: fields) {
+                            this.allFiled.put(f, require);
+                        }
+                    } else {
+                        this.allFiled.put(field, require);
+                    }
+
                 });
 
                 for (String cateCode : cateCodes.split(",", -1)) {
@@ -104,7 +116,16 @@ public class CategoryScoreWapper {
                 value.stream().forEach(x -> {
                     SortScoreComputeWapper sscw = new SortScoreComputeWapper(parser, x);
                     scoreComputeWappers.add(sscw);
-                    this.allFiled.put(sscw.getField(), false);
+                    String field = sscw.getField();
+                    // 多个字段
+                    if(field.indexOf(Constants.SPLIT) > 0) {
+                        String[] fields = field.split(Constants.SPLIT);
+                        for (String f: fields) {
+                            this.allFiled.put(f, false);
+                        }
+                    } else {
+                        this.allFiled.put(field, false);
+                    }
                 });
 
                 if(!CommonUtil.isEmpty(scoreComputeWappers)) {

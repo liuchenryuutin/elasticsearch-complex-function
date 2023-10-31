@@ -136,8 +136,8 @@ public class ComplexFieldFunction extends ScoreFunction {
                             String[] values = sbo.getValue().split(Constants.SPLIT);
                             for(int i = 0; i < fields.length; i++) {
                                 String f = fields[i];
-                                String type = types[i];
-                                String value = values[i];
+                                String type = types.length > i ? types[i] : null;
+                                String value = values.length > i ? values[i] : null;
                                 String[] val = getStrValArray(docId, (SortedSetDocValues) fieldDataMap.get(f));
                                 match = SortScoreComputeWapper.matchNew(type, value, val);
 //                                System.out.println("split分类名:" + categoryCode + "字段名:" + f + ",期待值:" + value + ",实际值:" + Arrays.toString(val) + ",是否匹配:" + match);
@@ -248,8 +248,8 @@ public class ComplexFieldFunction extends ScoreFunction {
                             String[] values = sbo.getValue().split(Constants.SPLIT);
                             for(int i = 0; i < fields.length; i++) {
                                 String f = fields[i];
-                                String type = types[i];
-                                String value = values[i];
+                                String type = types.length > i ? types[i] : null;
+                                String value = values.length > i ? values[i] : null;
                                 String[] val = getStrValArray(docId, (SortedSetDocValues) fieldDataMap.get(f));
                                 if(fVals.length() != 0) {
                                     fVals.append(Constants.SPLIT);

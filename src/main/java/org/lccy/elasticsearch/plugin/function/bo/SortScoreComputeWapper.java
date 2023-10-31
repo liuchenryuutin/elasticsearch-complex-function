@@ -85,32 +85,48 @@ public class SortScoreComputeWapper {
     }
 
     public static boolean matchNew(String type, String expectVal, String[] values) {
+        if(CommonUtil.isEmpty(type)) {
+            type = Constants.SortValueType.EQUAL;
+        }
+
         switch (type) {
             case Constants.SortValueType.EXISTS:
                 return values != null;
             case Constants.SortValueType.NOT_EXISTS:
                 return values == null;
             case Constants.SortValueType.IN:
-                if(values == null || values.length == 0) {
+                if(values == null || values.length == 0 || expectVal == null) {
                     return false;
                 }
                 for (String val : values) {
+                    if(val == null) {
+                        continue;
+                    }
                     if (expectVal.indexOf(val) >= 0) {
                         return true;
                     }
                 }
                 return false;
             case Constants.SortValueType.NOT_IN:
+                if(expectVal == null) {
+                    return false;
+                }
                 if(values == null || values.length == 0) {
                     return true;
                 }
                 for (String val : values) {
+                    if(val == null) {
+                        continue;
+                    }
                     if (expectVal.indexOf(val) >= 0) {
                         return false;
                     }
                 }
                 return true;
             case Constants.SortValueType.NOT:
+                if(expectVal == null) {
+                    return false;
+                }
                 if(values == null || values.length == 0) {
                     return true;
                 }
@@ -122,7 +138,7 @@ public class SortScoreComputeWapper {
                 return true;
             case Constants.SortValueType.EQUAL:
             default:
-                if(values == null || values.length == 0) {
+                if(values == null || values.length == 0 || expectVal == null) {
                     return false;
                 }
                 for (String val : values) {

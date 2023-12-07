@@ -20,7 +20,7 @@ The dynamic synonym plugin adds a synonym token filter that reloads the synonym 
 {
   "from": 0,
   "size": 10,
-  "explain": true,
+  "explain": false,
   "query": {
     "function_score": {
       "query": {
@@ -30,7 +30,9 @@ The dynamic synonym plugin adds a synonym token filter that reloads the synonym 
               "multi_match": {
                 "query": "刘德华",
                 "fields": [
-                  "title^2.0"
+                  "title^2.0",
+                  "titleFullPy^1.0",
+                  "titleSimPy^1.0"
                 ],
                 "type": "best_fields",
                 "operator": "OR",
@@ -49,7 +51,7 @@ The dynamic synonym plugin adds a synonym token filter that reloads the synonym 
               "range": {
                 "startTime": {
                   "from": null,
-                  "to": "2020-05-10 16:54:20",
+                  "to": "2023-05-10 16:54:20",
                   "include_lower": true,
                   "include_upper": true,
                   "boost": 1.0
@@ -59,7 +61,7 @@ The dynamic synonym plugin adds a synonym token filter that reloads the synonym 
             {
               "range": {
                 "endTime": {
-                  "from": "2020-05-10 16:54:20",
+                  "from": "2023-05-10 16:54:20",
                   "to": null,
                   "include_lower": true,
                   "include_upper": true,
@@ -75,85 +77,169 @@ The dynamic synonym plugin adds a synonym token filter that reloads the synonym 
       "functions": [
         {
           "complex_field_score": {
-            "category_field": "category",
-            "categorys": [
-              {
-                "name": "F1001,F1002",
-                "filed_mode": "sum",
-                "fields_score": [
-                  {
-                    "field": "exposure",
-                    "factor": 0.125,
-                    "modifier": "log1p",
-                    "weight": "50",
-                    "add_num": 0,
-                    "missing": "1"
-                  },
-                  {
-                    "field": "price",
-                    "factor": -0.2,
-                    "modifier": "log1p",
-                    "weight": "50",
-                    "add_num": 1,
-                    "missing": 0
-                  },
-                  {
-                    "field": "location",
-                    "factor": 1,
-                    "modifier": "decaygeoexp",
-                    "weight": "50",
-                    "add_num": 0,
-                    "missing": "",
-                    "origin": "31,33",
-                    "scale": "50km",
-                    "offset": "500m",
-                    "decay": 0.6
-                  }
-                ],
-                "sort_mode": "max",
-                "sort_base_score": 20000,
-                "sort_score": [
-                  {
-                    "weight": 1,
-                    "field": "cornerMark",
-                    "value": "1"
-                  },
-                  {
-                    "weight": 2,
-                    "field": "cornerMark",
-                    "value": "2"
-                  },
-                  {
-                    "weight": 3,
-                    "field": "provCode",
-                    "value": "9999"
-                  },
-                  {
-                    "weight": 4,
-                    "field": "provCode",
-                    "type": "not",
-                    "value": "9999"
-                  },
-                  {
-                    "weight": 5,
-                    "field": "type",
-                    "value": "1"
-                  },
-                  {
-                    "weight": 6,
-                    "field": "type",
-                    "value": "2"
-                  }
-                ]
-              }
-            ],
+            "category_field": "categoryCode.keyword",
+            "field_mode": "sum",
+            "fields_score": {
+              "F1001,F1002,F1005": [
+                {
+                  "field": "exposure",
+                  "factor": 0.125,
+                  "modifier": "log1p",
+                  "weight": "50"
+                },
+                {
+                  "field": "currentPrice",
+                  "factor": -0.2,
+                  "modifier": "log1p",
+                  "weight": "50",
+                  "add_num": 1,
+                  "missing": 0
+                },
+                {
+                  "field": "location",
+                  "factor": 1,
+                  "modifier": "decaygeoexp",
+                  "weight": "50",
+                  "origin": "31,33",
+                  "scale": "50km",
+                  "offset": "500m",
+                  "decay": 0.6
+                }
+              ]
+            },
+            "sort_base_score": 20000,
+            "sort_score": {
+              "F1006,F1002,F1004": [
+                {
+                  "weight": 1,
+                  "field": "cornerMark",
+                  "value": "1"
+                },
+                {
+                  "weight": 2,
+                  "field": "cornerMark",
+                  "value": "2"
+                },
+                {
+                  "weight": 3,
+                  "field": "sourceProvCode.keyword",
+                  "value": "9999"
+                },
+                {
+                  "weight": 4,
+                  "field": "sourceProvCode.keyword",
+                  "type": "not",
+                  "value": "9999"
+                },
+                {
+                  "weight": 5,
+                  "field": "iopType.keyword",
+                  "value": "1"
+                },
+                {
+                  "weight": 6,
+                  "field": "iopType.keyword",
+                  "value": "2"
+                }
+              ],
+              "F1004": [
+                {
+                  "weight": 2,
+                  "field": "cornerMark",
+                  "value": "1"
+                },
+                {
+                  "weight": 3,
+                  "field": "cornerMark",
+                  "value": "2"
+                }
+              ],
+              "F1005,F1001": [
+                {
+                  "weight": 2,
+                  "type": "any"
+                }
+              ],
+              "F1008": [
+                {
+                  "weight": 9,
+                  "field": "cornerMark&_&state",
+                  "type": "equal&_&not_in",
+                  "value": "1&_&2,3"
+                }
+              ]
+            },
             "func_score_factor": 0.7,
             "original_score_factor": 0.3
           }
         }
       ],
       "score_mode": "sum",
-      "boost_mode": "sum"
+      "boost_mode": "replace"
+    }
+  },
+  "aggregations": {
+    "categoryCode": {
+      "filters": {
+        "filters": {
+          "F1001": {
+            "bool": {
+              "filter": [
+                {
+                  "terms": {
+                    "categoryCode.keyword": [
+                      "F1001",
+                      "F1005",
+                      "F1008"
+                    ],
+                    "boost": 1.0
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "other_bucket": false,
+        "other_bucket_key": "_other_"
+      },
+      "aggregations": {
+        "top": {
+          "top_hits": {
+            "from": 0,
+            "size": 10,
+            "version": false,
+            "seq_no_primary_term": false,
+            "explain": false,
+            "_source": {
+              "includes": [],
+              "excludes": [
+                "shieldInfo",
+                "remark",
+                "createTime",
+                "startTime",
+                "endTime",
+                "titleFullPy",
+                "atomTagFullPy",
+                "atomTagSimPy",
+                "titleSimPy",
+                "titleStandardPy"
+              ]
+            },
+            "sort": [
+              {
+                "_score": {
+                  "order": "desc"
+                }
+              },
+              {
+                "updateTime": {
+                  "order": "desc"
+                }
+              }
+            ]
+          }
+        }
+      }
     }
   }
 }

@@ -177,6 +177,18 @@ public class CategoryScoreWapper {
         return allFiled;
     }
 
+    public Map<String, Object> getCategorys() {
+        return categorys;
+    }
+
+    public Map<String, List<FieldScoreComputeWapper>> getFieldScoreWapperMap() {
+        return fieldScoreWapperMap;
+    }
+
+    public Map<String, List<SortScoreComputeWapper>> getScoreComputeWapperMap() {
+        return scoreComputeWapperMap;
+    }
+
     private void throwsException(XContentParser parser, String msg) {
         if (parser != null) {
             throw new ParsingException(parser.getTokenLocation(), msg);

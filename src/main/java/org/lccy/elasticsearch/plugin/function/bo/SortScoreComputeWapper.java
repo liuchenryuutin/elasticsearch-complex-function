@@ -76,8 +76,7 @@ public class SortScoreComputeWapper {
     }
 
     public String getExpression(double sortBaseSocre) {
-        String oper = Constants.SortValueType.NOT.equals(this.getType()) ? "!=" : "=";
-        return String.format(Locale.ROOT, "if %s %s %s, then exec %s * %f, else do nothing.", getField(), oper, getValue(), getWeight().toString(), sortBaseSocre);
+        return String.format(Locale.ROOT, "if %s %s %s, then exec %s * %f, else do nothing.", getField(), this.getType(), getValue(), getWeight().toString(), sortBaseSocre);
     }
 
     public boolean match(String[] values) {

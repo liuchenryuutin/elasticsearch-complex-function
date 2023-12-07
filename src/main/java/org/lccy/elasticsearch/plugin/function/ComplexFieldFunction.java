@@ -312,20 +312,16 @@ public class ComplexFieldFunction extends ScoreFunction {
     }
 
     public String[] getStrValArray(int docId, SortedSetDocValues values) throws IOException {
-        if (values == null) {
+        if (values == null || !values.advanceExact(docId)) {
             return null;
         }
-        if (values.advanceExact(docId) && values.getValueCount() <= 0) {
-            return null;
-        }
-        String[] result = new String[(int) values.getValueCount()];
-        int i = 0;
+        List<String> result = new ArrayList<>();
         long next;
         while ((next = values.nextOrd()) != SortedSetDocValues.NO_MORE_ORDS) {
-            result[i++] = values.lookupOrd(next).utf8ToString();
+            result.add(values.lookupOrd(next).utf8ToString());
         }
 
-        return result;
+        return result.toArray(new String[result.size()]);
     }
 
     public Double getDoubleVal(int docId, SortedNumericDoubleValues values) throws IOException {

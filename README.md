@@ -1,6 +1,6 @@
 # Complex field function score for ElasticSearch
 
-The dynamic synonym plugin adds a synonym token filter that reloads the synonym file (local file or remote file) at given intervals (default 60s).
+Custom score plugin, supports percentage merging with relevance scores.
 
 ## Version
 

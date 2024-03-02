@@ -169,7 +169,7 @@ public class ComplexFieldFunction extends ScoreFunction {
                 String categoryCode = getStrVal(docId, (SortedSetDocValues) fieldDataMap.get(csw.getCategoryField()));
                 if (CommonUtil.isEmpty(categoryCode)) {
                     return Explanation.match(csw.getOriginalScoreFactor() * subQueryScore.getValue().floatValue()
-                            , String.format("category is empty. subQueryScore:[%f], expression:[%f * subScore]", subQueryScore.getValue().floatValue(), csw.getOriginalScoreFactor()));
+                            , String.format("category is empty. subQueryScore:[%f], expression:[%f * subScore]", subQueryScore.getValue().floatValue(), csw.getOriginalScoreFactor()), subQueryScore);
                 }
                 List<FieldScoreComputeWapper> fieldScores = csw.getFieldScoreWappers(categoryCode);
                 List<SortScoreComputeWapper> sortScores = csw.getScoreComputeWappers(categoryCode);
@@ -289,6 +289,7 @@ public class ComplexFieldFunction extends ScoreFunction {
                 if (sortExplain != null) {
                     resList.add(sortExplain);
                 }
+                resList.add(subQueryScore);
                 Explanation result = Explanation.match(
                         (float) score,
                         String.format(Locale.ROOT,
